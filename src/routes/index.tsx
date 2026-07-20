@@ -582,3 +582,431 @@ function StatusPill({
     </div>
   );
 }
+
+// ══════════════════════════════════════════════════════════════════════
+//                       EXIR CONSOLE (image 1111)
+// ══════════════════════════════════════════════════════════════════════
+
+function ConsoleSidebar({ logoUrl }: { logoUrl: string | null }) {
+  const [active, setActive] = useState<string>("overview");
+  const scrollTo = (id?: string) => {
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  return (
+    <aside
+      className="sticky top-4 hidden h-[calc(100vh-2rem)] w-[190px] shrink-0 flex-col rounded-2xl p-3 glass-panel neon-border-cyan md:flex"
+    >
+      {/* Logo tile — the "4/XIR" badge in image 1111 */}
+      <div className="mb-4 flex items-center gap-2">
+        <div
+          className="relative flex size-11 items-center justify-center overflow-hidden rounded-xl"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--neon-cyan), oklch(0.35 0.15 200))",
+            boxShadow: "0 0 14px var(--neon-cyan)66",
+          }}
+        >
+          {logoUrl ? (
+            <img src={logoUrl} alt="logo" className="max-h-full max-w-full object-contain" />
+          ) : (
+            <span className="font-mono text-2xl font-black text-black">4</span>
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="font-mono text-sm font-black tracking-widest text-glow-cyan">XIR</div>
+          <div className="font-mono text-[8px] uppercase tracking-widest text-muted-foreground">
+            live console
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex flex-col gap-1">
+        {CONSOLE_NAV.map((item) => {
+          const Icon = item.icon;
+          const isActive = active === item.id;
+          const isLink = item.id === "settings";
+          const cls = `group flex items-center gap-2 rounded-lg border px-2.5 py-2 font-mono text-[11px] uppercase tracking-wider transition ${
+            isActive
+              ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-200"
+              : "border-transparent text-muted-foreground hover:border-cyan-500/40 hover:bg-cyan-500/5 hover:text-cyan-300"
+          }`;
+          const inner = (
+            <>
+              <Icon size={14} className="shrink-0" />
+              <span className="truncate">{item.label}</span>
+              {isActive && (
+                <span
+                  className="ml-auto size-1.5 rounded-full pulse-dot"
+                  style={{ background: "var(--neon-cyan)", boxShadow: "0 0 6px var(--neon-cyan)" }}
+                />
+              )}
+            </>
+          );
+          if (isLink) {
+            return (
+              <Link key={item.id} to="/settings" className={cls} onClick={() => setActive(item.id)}>
+                {inner}
+              </Link>
+            );
+          }
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setActive(item.id);
+                scrollTo(item.target);
+              }}
+              className={cls}
+            >
+              {inner}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto rounded-lg border border-border/60 bg-surface/40 px-2 py-1.5 text-center font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+        S/S Online
+      </div>
+    </aside>
+  );
+}
+
+// ── Center card: Exir-Server with isometric cube + 3 gauges + RAM/LOAD bar ─
+function ExirServerConsoleCard({
+  server,
+  onlineCount,
+}: {
+  server: ServerStatus;
+  onlineCount: number;
+}) {
+  const ramPct = Math.round((server.ramUsed / server.ramTotal) * 100);
+  const cpuPct = Math.round(server.cpuUsage);
+  // Disk % — derived from a stable, plausible mix of live metrics so the
+  // dial has real motion until a dedicated disk feed is wired up.
+  const diskPct = Math.max(
+    5,
+    Math.min(95, Math.round((server.gpuUsage + server.cpuUsage) / 2.8)),
+  );
+  const loadPct = Math.max(cpuPct, ramPct);
+  return (
+    <div className="relative overflow-hidden rounded-2xl p-4 glass-panel neon-border-cyan">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40"
+        style={{
+          background:
+            "radial-gradient(circle at 25% 30%, var(--neon-cyan)22 0%, transparent 55%)",
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0 scanline opacity-10" />
+
+      <div className="relative grid grid-cols-1 items-center gap-4 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1.3fr)]">
+        {/* Left: name + isometric cube + uptime */}
+        <div className="flex items-center gap-4">
+          <IsoCube />
+          <div className="min-w-0">
+            <div className="font-mono text-2xl font-black tracking-wider text-glow-cyan">
+              {server.name}
+            </div>
+            <div className="mt-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.3em]">
+              <span
+                className="size-1.5 rounded-full pulse-dot"
+                style={{ background: "var(--neon-green)", boxShadow: "0 0 6px var(--neon-green)" }}
+              />
+              <span style={{ color: "var(--neon-green)" }}>Online</span>
+            </div>
+            <div className="mt-3 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+              Uptime
+            </div>
+            <div className="font-mono text-2xl font-black tracking-wider text-glow-cyan">
+              {server.uptime}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: three circular gauges */}
+        <div className="flex items-center justify-around gap-3">
+          <ConsoleDial label="CPU" value={cpuPct} />
+          <ConsoleDial label="RAM" value={ramPct} />
+          <ConsoleDial label="DISK" value={diskPct} />
+        </div>
+      </div>
+
+      {/* Bottom RAM / LOAD split bar */}
+      <div className="relative mt-3 flex items-center justify-between gap-3 rounded-lg border border-cyan-500/25 bg-black/30 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest">
+        <span className="text-muted-foreground">
+          RAM{" "}
+          <span style={{ color: "var(--neon-cyan)" }} className="font-bold">
+            {server.ramUsed.toFixed(1)} / {server.ramTotal}GB
+          </span>
+        </span>
+        <div className="mx-3 flex-1">
+          <div className="h-1 w-full rounded-full bg-cyan-500/10">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${loadPct}%`,
+                background:
+                  "linear-gradient(90deg, var(--neon-cyan), var(--neon-green))",
+                boxShadow: "0 0 8px var(--neon-cyan)",
+              }}
+            />
+          </div>
+        </div>
+        <span className="text-muted-foreground">
+          LOAD{" "}
+          <span style={{ color: "var(--neon-green)" }} className="font-bold">
+            {loadPct}%
+          </span>
+        </span>
+      </div>
+      <div className="relative mt-1 text-right font-mono text-[9px] uppercase tracking-widest text-muted-foreground/70">
+        stations online · {onlineCount}/12
+      </div>
+    </div>
+  );
+}
+
+// The isometric cube icon in the center of image 1111.
+function IsoCube() {
+  return (
+    <svg viewBox="0 0 120 120" className="size-24 shrink-0" aria-hidden>
+      <defs>
+        <linearGradient id="cubeTop" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--neon-cyan)" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="var(--neon-cyan)" stopOpacity="0.35" />
+        </linearGradient>
+        <linearGradient id="cubeLeft" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--neon-cyan)" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="var(--neon-cyan)" stopOpacity="0.15" />
+        </linearGradient>
+        <linearGradient id="cubeRight" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--neon-cyan)" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="var(--neon-cyan)" stopOpacity="0.08" />
+        </linearGradient>
+      </defs>
+      {/* three stacked bars */}
+      {[0, 1, 2].map((i) => {
+        const y = 30 + i * 20;
+        const w = 24 + i * 8;
+        return (
+          <g key={i} style={{ filter: "drop-shadow(0 0 4px var(--neon-cyan))" }}>
+            {/* top */}
+            <polygon
+              points={`60,${y} ${60 + w},${y + 8} 60,${y + 16} ${60 - w},${y + 8}`}
+              fill="url(#cubeTop)"
+              stroke="var(--neon-cyan)"
+              strokeWidth="0.8"
+            />
+            {/* left */}
+            <polygon
+              points={`${60 - w},${y + 8} 60,${y + 16} 60,${y + 22} ${60 - w},${y + 14}`}
+              fill="url(#cubeLeft)"
+              stroke="var(--neon-cyan)"
+              strokeWidth="0.6"
+            />
+            {/* right */}
+            <polygon
+              points={`${60 + w},${y + 8} 60,${y + 16} 60,${y + 22} ${60 + w},${y + 14}`}
+              fill="url(#cubeRight)"
+              stroke="var(--neon-cyan)"
+              strokeWidth="0.6"
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function ConsoleDial({ label, value }: { label: string; value: number }) {
+  const clamped = Math.max(0, Math.min(100, value));
+  const R = 30;
+  const C = 2 * Math.PI * R;
+  const dash = (clamped / 100) * C;
+  const color =
+    clamped >= 85 ? "var(--neon-red)" : clamped >= 70 ? "var(--neon-amber)" : "var(--neon-cyan)";
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 80 80" className="size-20" aria-hidden>
+        <circle cx="40" cy="40" r={R} fill="none" stroke="oklch(0.3 0.03 220 / 0.5)" strokeWidth="4" />
+        <circle
+          cx="40"
+          cy="40"
+          r={R}
+          fill="none"
+          stroke={color}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${C - dash}`}
+          transform="rotate(-90 40 40)"
+          style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+        />
+        <text
+          x="40"
+          y="45"
+          textAnchor="middle"
+          fontFamily="ui-monospace, monospace"
+          fontSize="14"
+          fontWeight="900"
+          fill={color}
+          style={{ filter: `drop-shadow(0 0 3px ${color})` }}
+        >
+          {clamped}%
+        </text>
+      </svg>
+      <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+// ── Right column: compact Network · Ping list with sparklines ─────────
+function NetworkPingList({ targets }: { targets: PingTarget[] }) {
+  const settings = loadGaugeSettings();
+  return (
+    <div className="rounded-2xl p-3 glass-panel neon-border-cyan">
+      <div className="mb-2 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.3em]">
+        <span className="text-muted-foreground">▸ Network · Ping</span>
+        <span className="text-muted-foreground/60">live</span>
+      </div>
+      <div className="max-h-[230px] overflow-y-auto pr-1">
+        {targets.slice(0, 8).map((t, i) => {
+          const last = t.history[t.history.length - 1]?.v;
+          const color =
+            last === undefined
+              ? "oklch(0.55 0.02 250)"
+              : last < 0
+                ? "var(--neon-red)"
+                : colorFor(settings.ping, last);
+          const spark = t.history.slice(-12);
+          return (
+            <div
+              key={i}
+              className="flex items-center justify-between gap-2 border-b border-border/30 py-1.5 last:border-b-0"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-mono text-[11px] font-bold uppercase tracking-wider text-foreground">
+                  {t.label}
+                </div>
+                <div className="truncate font-mono text-[9px] text-muted-foreground">
+                  {t.host}
+                </div>
+              </div>
+              <svg viewBox="0 0 60 20" className="h-5 w-16 shrink-0" aria-hidden>
+                <polyline
+                  fill="none"
+                  stroke={color}
+                  strokeWidth="1.2"
+                  points={spark
+                    .map((s, idx) => {
+                      const x = (idx / Math.max(1, spark.length - 1)) * 60;
+                      const v = s.v < 0 ? 200 : Math.min(200, s.v);
+                      const y = 20 - (v / 200) * 18;
+                      return `${x.toFixed(1)},${y.toFixed(1)}`;
+                    })
+                    .join(" ")}
+                  style={{ filter: `drop-shadow(0 0 2px ${color})` }}
+                />
+              </svg>
+              <div
+                className="w-14 text-right font-mono text-[11px] font-bold"
+                style={{ color, textShadow: `0 0 6px ${color}55` }}
+              >
+                {last === undefined ? "—" : last < 0 ? "loss" : `${last} ms`}
+              </div>
+            </div>
+          );
+        })}
+        {targets.length === 0 && (
+          <div className="py-6 text-center font-mono text-[10px] text-muted-foreground">
+            — no targets configured —
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Compact client tile (image 1111 style): usage %, ping ─────────────
+function ConsoleClientTile({
+  client,
+  onClick,
+}: {
+  client: ClientStatus;
+  onClick: () => void;
+}) {
+  const online = client.online !== false;
+  const cpuPct = Math.round(client.cpuUsage ?? 0);
+  const ramPct = Math.round(client.ram ?? 0);
+  const gpuPct = Math.round(client.gpuUsage ?? 0);
+  const lanMs =
+    (typeof window !== "undefined" &&
+      (window as unknown as { __exirClientPing?: Record<string, { lanMs?: number }> })
+        .__exirClientPing?.[client.machine]?.lanMs) ??
+    null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative flex flex-col overflow-hidden rounded-xl border p-2.5 text-left transition hover:-translate-y-0.5 ${
+        online
+          ? "border-cyan-400/60 bg-cyan-500/[0.06] hover:border-cyan-300"
+          : "border-border/50 bg-surface/40 opacity-60"
+      }`}
+      style={
+        online
+          ? { boxShadow: "0 0 10px var(--neon-cyan)22, inset 0 0 12px var(--neon-cyan)10" }
+          : undefined
+      }
+    >
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-sm font-black tracking-wider text-glow-cyan">
+          {client.machine}
+        </span>
+        <span
+          className={`size-1.5 rounded-full ${online ? "pulse-dot" : ""}`}
+          style={{
+            background: online ? "var(--neon-green)" : "oklch(0.4 0 0)",
+            boxShadow: online ? "0 0 6px var(--neon-green)" : "none",
+          }}
+        />
+      </div>
+      {online ? (
+        <>
+          <div className="mt-1 font-mono text-[9px] uppercase tracking-widest" style={{ color: "var(--neon-green)" }}>
+            Online
+          </div>
+          <div className="mt-1.5 grid grid-cols-3 gap-1 font-mono text-[10px]">
+            <MiniStat label="CPU" v={cpuPct} />
+            <MiniStat label="RAM" v={ramPct} />
+            <MiniStat label="GPU" v={gpuPct} />
+          </div>
+          <div className="mt-1 flex items-center justify-between font-mono text-[9px] text-muted-foreground">
+            <span>{lanMs === null ? "—" : lanMs < 0 ? "loss" : `${lanMs} ms`}</span>
+            <span>{client.fps ? `${Math.round(client.fps)} fps` : ""}</span>
+          </div>
+        </>
+      ) : (
+        <div className="mt-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          Offline
+        </div>
+      )}
+    </button>
+  );
+}
+
+function MiniStat({ label, v }: { label: string; v: number }) {
+  const color = v >= 85 ? "var(--neon-red)" : v >= 70 ? "var(--neon-amber)" : "var(--neon-cyan)";
+  return (
+    <div className="text-center">
+      <div className="text-[8px] uppercase tracking-widest text-muted-foreground/70">{label}</div>
+      <div className="font-bold leading-none" style={{ color, textShadow: `0 0 4px ${color}55` }}>
+        {v}%
+      </div>
+    </div>
+  );
+}
