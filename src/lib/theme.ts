@@ -7,6 +7,7 @@
 
 export type ThemeId =
   | "neon-cyber"
+  | "ocean-deep"
   | "glass-aurora"
   | "blood-crimson"
   | "emerald-matrix"
@@ -23,6 +24,7 @@ export interface ThemeMeta {
 
 export const THEMES: ThemeMeta[] = [
   { id: "neon-cyber",     name: "Neon Cyber",     fa: "نئون سایبر", swatch: ["#0b1226", "#1a2647", "#22d3ee", "#e879f9"], desc: "The original — deep navy with cyan/magenta neon." },
+  { id: "ocean-deep",     name: "Ocean Deep",     fa: "اقیانوس عمیق", swatch: ["#061826", "#0c2b40", "#12b8c4", "#5cf0e8"], desc: "EXIR GAMENET console — deep teal ocean with cyan HUD grid." },
   { id: "glass-aurora",   name: "Glass Aurora",   fa: "شیشه‌ای",     swatch: ["#0b1226", "#1e2b52", "#7dd3fc", "#c084fc"], desc: "Same vibe, heavier glass blur, softer glows." },
   { id: "blood-crimson",  name: "Blood Crimson",  fa: "خون",         swatch: ["#140606", "#2a0e0e", "#ff3b3b", "#ffb347"], desc: "Dark red war-room feel." },
   { id: "emerald-matrix", name: "Emerald Matrix", fa: "ماتریکس",     swatch: ["#03130a", "#0a2818", "#22c55e", "#a3e635"], desc: "Green terminal / hacker vibe." },
@@ -49,7 +51,7 @@ export const LAYOUTS: LayoutMeta[] = [
 
 const KEY = "exir:theme";
 const LKEY = "exir:layout";
-export const DEFAULT_THEME: ThemeId = "neon-cyber";
+export const DEFAULT_THEME: ThemeId = "ocean-deep";
 export const DEFAULT_LAYOUT: LayoutId = "grid";
 
 export function loadTheme(): ThemeId {
