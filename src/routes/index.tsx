@@ -11,7 +11,6 @@ import {
   Wifi,
   AlertTriangle,
   FileBarChart2,
-  Server as ServerIcon,
 } from "lucide-react";
 import bgImage from "@/assets/bg-gaming.jpg";
 import { generateMockClients, generateMockServer } from "@/lib/monitoring-mock";
@@ -46,7 +45,6 @@ import { loadLogo } from "@/lib/branding";
 import { recordTick as recordProcessTick } from "@/lib/process-history";
 import { isComposing } from "@/lib/compose-lock";
 import { recordPing, recordSteamDown, recordUsage } from "@/lib/daily-report";
-import { loadInfraHosts, type InfraHost } from "@/lib/infra-status";
 import { colorFor, loadSettings as loadGaugeSettings } from "@/lib/gauge-settings";
 
 // --- نمایش/مخفی‌کردن بخش‌های صفحه ---
