@@ -62,10 +62,26 @@ const SHOW_STEAM_EPIC_STATUS = true;
 const SHOW_GAME_PLATFORMS = true;
 const SHOW_RESERVATION_BOARD = true;
 const SHOW_DAILY_REPORT = true;
+// When the console (1111) layout renders, hide the legacy separate sections
+// below the fold so they don't visually duplicate the console blocks — set
+// to `true` to bring them back.
+const SHOW_LEGACY_SECTIONS_BELOW = true;
 // Phase 9: the "Server OK" pill was replaced up top by the market shop
 // icon. Kept behind this flag in case it needs to come back later — set
 // to `true` to show it again (it'll appear next to the market icon).
 const SHOW_SERVER_STATUS_PILL = false;
+
+// ── EXIR CONSOLE (image 1111) sidebar navigation items ──────────────────
+const CONSOLE_NAV: { id: string; label: string; icon: typeof LayoutDashboard; target?: string }[] = [
+  { id: "overview",     label: "Overview",         icon: LayoutDashboard },
+  { id: "infra",        label: "Infrastructure",   icon: NetworkIcon,      target: "sec-infra" },
+  { id: "clients",      label: "Clients",          icon: Users,            target: "sec-clients" },
+  { id: "internet",     label: "Internet Control", icon: Globe2,           target: "sec-qos" },
+  { id: "network",      label: "Network",          icon: Wifi,             target: "sec-ping" },
+  { id: "alerts",       label: "Alerts",           icon: AlertTriangle,    target: "sec-alerts" },
+  { id: "reports",      label: "Reports",          icon: FileBarChart2,    target: "sec-reports" },
+  { id: "settings",     label: "Settings",         icon: Settings,         target: "sec-settings" },
+];
 
 export const Route = createFileRoute("/")({
   head: () => ({
