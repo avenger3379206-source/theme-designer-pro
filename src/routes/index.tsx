@@ -1,6 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Settings, Store } from "lucide-react";
+import {
+  Settings,
+  Store,
+  Bell,
+  LayoutDashboard,
+  Network as NetworkIcon,
+  Users,
+  Globe2,
+  Wifi,
+  AlertTriangle,
+  FileBarChart2,
+  Server as ServerIcon,
+} from "lucide-react";
 import bgImage from "@/assets/bg-gaming.jpg";
 import { generateMockClients, generateMockServer } from "@/lib/monitoring-mock";
 import type { ClientStatus, PingTarget, ServerStatus } from "@/lib/monitoring-types";
@@ -34,6 +46,9 @@ import { loadLogo } from "@/lib/branding";
 import { recordTick as recordProcessTick } from "@/lib/process-history";
 import { isComposing } from "@/lib/compose-lock";
 import { recordPing, recordSteamDown, recordUsage } from "@/lib/daily-report";
+import { loadInfraHosts, type InfraHost } from "@/lib/infra-status";
+import { pingAll } from "@/lib/ping";
+import { colorFor, loadSettings as loadGaugeSettings } from "@/lib/gauge-settings";
 
 // --- نمایش/مخفی‌کردن بخش‌های صفحه ---
 // هر کدوم رو false کنی، اون بخش کلاً رندر نمی‌شه.
