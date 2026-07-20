@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as MarketRouteImport } from './routes/market'
-import { Route as IndexCopyRouteImport } from './routes/index - Copy'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -24,11 +23,6 @@ const MarketRoute = MarketRouteImport.update({
   path: '/market',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexCopyRoute = IndexCopyRouteImport.update({
-  id: '/index - Copy',
-  path: '/index - Copy',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -37,34 +31,30 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/index - Copy': typeof IndexCopyRoute
   '/market': typeof MarketRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/index - Copy': typeof IndexCopyRoute
   '/market': typeof MarketRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/index - Copy': typeof IndexCopyRoute
   '/market': typeof MarketRoute
   '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/index - Copy' | '/market' | '/settings'
+  fullPaths: '/' | '/market' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/index - Copy' | '/market' | '/settings'
-  id: '__root__' | '/' | '/index - Copy' | '/market' | '/settings'
+  to: '/' | '/market' | '/settings'
+  id: '__root__' | '/' | '/market' | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  IndexCopyRoute: typeof IndexCopyRoute
   MarketRoute: typeof MarketRoute
   SettingsRoute: typeof SettingsRoute
 }
@@ -85,13 +75,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/index - Copy': {
-      id: '/index - Copy'
-      path: '/index - Copy'
-      fullPath: '/index - Copy'
-      preLoaderRoute: typeof IndexCopyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -104,7 +87,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  IndexCopyRoute: IndexCopyRoute,
   MarketRoute: MarketRoute,
   SettingsRoute: SettingsRoute,
 }
