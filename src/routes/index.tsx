@@ -312,39 +312,27 @@ function Dashboard() {
         style={{ background: "var(--neon-magenta)", animationDelay: "-3s" }}
       />
 
-      <div className="mx-auto max-w-[1600px] px-6 py-6">
+      <div className="mx-auto flex max-w-[1720px] gap-4 px-4 py-4">
+        {/* ── LEFT SIDEBAR NAV (image 1111) ─────────────────────────── */}
+        <ConsoleSidebar logoUrl={logoUrl} />
+
+        {/* ── MAIN CONSOLE COLUMN ───────────────────────────────────── */}
+        <div className="flex-1 min-w-0">
         {/* Header */}
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <header className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-2 glass-panel neon-border-cyan">
           <div className="flex items-center gap-4">
-            <div
-              className="relative flex size-14 items-center justify-center overflow-hidden rounded-xl neon-border-cyan"
-              style={{
-                background:
-                  "linear-gradient(135deg, oklch(0.22 0.06 220 / 0.6), oklch(0.18 0.05 280 / 0.6))",
-              }}
-            >
-              {logoUrl ? (
-                <img src={logoUrl} alt="logo" className="max-h-full max-w-full object-contain" />
-              ) : (
-                <span className="font-mono text-3xl font-black text-glow-cyan">E</span>
-              )}
-              <span
-                className="absolute -bottom-1 -right-1 size-3 rounded-full pulse-dot"
-                style={{ background: "var(--neon-green)", boxShadow: "0 0 8px var(--neon-green)" }}
-              />
-            </div>
             <div>
-              <h1 className="font-mono text-3xl font-black uppercase tracking-[0.2em] leading-none">
+              <h1 className="font-mono text-xl font-black uppercase tracking-[0.3em] leading-none">
                 <span className="text-glow-cyan">Exir</span>{" "}
                 <span className="text-glow-magenta">Gamenet</span>
               </h1>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.4em] text-muted-foreground">
+              <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.4em] text-muted-foreground">
                 ▸ live monitoring console ◂
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <SourceControl
               mode={mode}
               folderName={folderName}
@@ -353,7 +341,7 @@ function Dashboard() {
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
             />
-            <StatusPill label="Stations" value={`${onlineCount}/12`} color="cyan" />
+            <StatusPill label="Servers" value={`${onlineCount}/12`} color="cyan" />
             <HotspotStatus />
             <StatusPill
               label="Reserved"
@@ -361,36 +349,49 @@ function Dashboard() {
               color={reservedCount > 0 ? "magenta" : "cyan"}
             />
             {SHOW_SERVER_STATUS_PILL && <StatusPill label="Server" value="OK" color="green" />}
+            <StatusPill label="Time" value={now} color="cyan" />
             <Link
               to="/market"
               title="فروشگاه"
-              className="flex size-10 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-muted-foreground transition hover:border-cyan-500/60 hover:text-cyan-300"
+              className="flex size-9 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-muted-foreground transition hover:border-cyan-500/60 hover:text-cyan-300"
             >
-              <Store size={16} />
+              <Store size={15} />
             </Link>
-            <StatusPill label="Time" value={now} color="magenta" />
+            <button
+              type="button"
+              title="Alerts"
+              className="flex size-9 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-muted-foreground transition hover:border-cyan-500/60 hover:text-cyan-300"
+            >
+              <Bell size={15} />
+            </button>
             <Link
               to="/settings"
               title="Gauge settings"
-              className="flex size-10 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-muted-foreground transition hover:rotate-90 hover:border-cyan-500/60 hover:text-cyan-300"
+              className="flex size-9 items-center justify-center rounded-lg border border-border/60 bg-surface/60 text-muted-foreground transition hover:rotate-90 hover:border-cyan-500/60 hover:text-cyan-300"
             >
-              <Settings size={16} />
+              <Settings size={15} />
             </Link>
           </div>
         </header>
 
         {/* Infrastructure status (modems / mikrotik / linux / cisco) */}
-        <section className="mb-3">
+        <section id="sec-infra" className="mb-3">
           <InfraStatusPanel />
         </section>
 
-        {/* Server */}
-        <section className="mb-5">
-          {SHOW_SERVER_CARD && server && <ServerCard server={{ ...server, uptime }} />}
+        {/* ── CONSOLE MIDDLE ROW: Exir-Server card  +  Network·Ping ── */}
+        <section className="mb-3 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+          {server && (
+            <ExirServerConsoleCard
+              server={{ ...server, uptime }}
+              onlineCount={onlineCount}
+            />
+          )}
+          <NetworkPingList targets={pings} />
         </section>
 
-        {/* Clients grid */}
-        <section className="mb-5">
+        {/* Internet Control (QoS strip) — matches image 1111 */}
+        <section id="sec-qos" className="mb-3">
           {SHOW_VNC_QUICK_LAUNCH && (
             <VncQuickLaunch
               total={12}
@@ -407,28 +408,44 @@ function Dashboard() {
               )}
             />
           )}
-          {SHOW_CLIENTS_GRID && (
-            <>
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                  client stations · 12
-                </h3>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  click a card for details
-                </span>
-              </div>
-              <div data-clients-grid="1" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        </section>
+
+        {/* ── BOTTOM ROW: Client Stations grid  +  EPIC CDN sidebar ── */}
+        <section
+          id="sec-clients"
+          className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)]"
+        >
+          <div className="rounded-xl p-3 glass-panel neon-border-cyan">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
+                client stations · 12
+              </h3>
+              <span className="font-mono text-[9px] text-muted-foreground">
+                click a card for details
+              </span>
+            </div>
+            {SHOW_CLIENTS_GRID && (
+              <div data-clients-grid="1" className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
                 {clients.map((c) => (
-                  <ClientCard key={c.machine} client={c} onClick={() => setSelected(c)} />
+                  <ConsoleClientTile
+                    key={c.machine}
+                    client={c}
+                    onClick={() => setSelected(c)}
+                  />
                 ))}
               </div>
-            </>
+            )}
+          </div>
+          {SHOW_EPIC_CDN_DISCOVERY && (
+            <div className="min-w-0">
+              <EpicCdnDiscovery />
+            </div>
           )}
         </section>
 
-        {/* Ping */}
-        {SHOW_PING && (
-          <section>
+        {/* ── Ping full panel (kept for edit + history detail) ─────── */}
+        {SHOW_PING && SHOW_LEGACY_SECTIONS_BELOW && (
+          <section id="sec-ping" className="mt-3">
             <PingPanel
               targets={pings}
               onEdit={(i, next) => {
@@ -444,44 +461,33 @@ function Dashboard() {
           </section>
         )}
 
-        {/* Epic CDN Discovery — above launcher status */}
-        {SHOW_EPIC_CDN_DISCOVERY && (
-          <section className="mt-5">
-            <EpicCdnDiscovery />
-          </section>
-        )}
-
-        {/* Cache Activity (LanCache) — above network/ping */}
-        {SHOW_CACHE_ACTIVITY && (
+        {/* Cache Activity (LanCache) */}
+        {SHOW_CACHE_ACTIVITY && SHOW_LEGACY_SECTIONS_BELOW && (
           <section className="mt-3">
             <CacheActivityPanel />
           </section>
         )}
 
-        {/* Steam & Epic platform status */}
-        {SHOW_STEAM_EPIC_STATUS && (
+        {SHOW_STEAM_EPIC_STATUS && SHOW_LEGACY_SECTIONS_BELOW && (
           <section className="mt-3">
             <SteamEpicStatus />
           </section>
         )}
 
-        {/* Game platforms + latency */}
-        {SHOW_GAME_PLATFORMS && (
+        {SHOW_GAME_PLATFORMS && SHOW_LEGACY_SECTIONS_BELOW && (
           <section className="mt-3">
             <GamePlatformsPanel />
           </section>
         )}
 
-        {/* Seat reservation */}
-        {SHOW_RESERVATION_BOARD && (
+        {SHOW_RESERVATION_BOARD && SHOW_LEGACY_SECTIONS_BELOW && (
           <section className="mt-3">
             <ReservationBoard />
           </section>
         )}
 
-        {/* Daily report */}
-        {SHOW_DAILY_REPORT && (
-          <section className="mt-3">
+        {SHOW_DAILY_REPORT && SHOW_LEGACY_SECTIONS_BELOW && (
+          <section id="sec-reports" className="mt-3">
             <DailyReport />
           </section>
         )}
@@ -490,6 +496,7 @@ function Dashboard() {
           exir gamenet · monitoring v0.1 · auto-refresh 3s ·{" "}
           {mode === "live" ? `live: ${folderName}` : "mock data"}
         </footer>
+        </div>
       </div>
 
       <ClientPingProbe clients={clients} />
