@@ -47,7 +47,6 @@ import { recordTick as recordProcessTick } from "@/lib/process-history";
 import { isComposing } from "@/lib/compose-lock";
 import { recordPing, recordSteamDown, recordUsage } from "@/lib/daily-report";
 import { loadInfraHosts, type InfraHost } from "@/lib/infra-status";
-import { pingAll } from "@/lib/ping";
 import { colorFor, loadSettings as loadGaugeSettings } from "@/lib/gauge-settings";
 
 // --- نمایش/مخفی‌کردن بخش‌های صفحه ---
