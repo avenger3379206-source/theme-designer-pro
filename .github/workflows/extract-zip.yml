@@ -1,0 +1,38 @@
+name: Extract ZIP
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - gamenet-watcher-main.zip
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Extract ZIP
+        run: unzip -o gamenet-watcher-main.zip
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Auto extract ZIP"
+            git push
+          fi
