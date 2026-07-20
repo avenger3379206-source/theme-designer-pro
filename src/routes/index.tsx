@@ -943,11 +943,14 @@ function ConsoleClientTile({
   const cpuPct = Math.round(client.cpuUsage ?? 0);
   const ramPct = Math.round(client.ram ?? 0);
   const gpuPct = Math.round(client.gpuUsage ?? 0);
-  const lanMs =
-    (typeof window !== "undefined" &&
-      (window as unknown as { __exirClientPing?: Record<string, { lanMs?: number }> })
-        .__exirClientPing?.[client.machine]?.lanMs) ??
-    null;
+  let lanMs: number | null = null;
+  if (typeof window !== "undefined") {
+    const map = (window as unknown as {
+      __exirClientPing?: Record<string, { lanMs?: number }>;
+    }).__exirClientPing;
+    const v = map?.[client.machine]?.lanMs;
+    if (typeof v === "number") lanMs = v;
+  }
   return (
     <button
       type="button"
