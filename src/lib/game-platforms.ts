@@ -65,15 +65,32 @@ export async function loadPlatforms(): Promise<PlatformStatus[]> {
 }
 
 // Latency targets per platform: { platform: [{region, host}] }
+// CS2 / Dota2 rows use per-country (or per-datacenter) public probes as a
+// stand-in for Valve's matchmaking datacenters, since those are only
+// reachable from inside the game (private relay IPs, no ICMP). Hetzner's
+// public speedtest hosts are used where they sit in the exact requested
+// city (Helsinki, Falkenstein); everywhere else we probe a well-known
+// public host physically located in that country/region.
 export const LATENCY_TARGETS: Record<string, { region: string; host: string }[]> = {
-  Steam: [
-    { region: "Tehran",    host: "content1.steampowered.com" },
-    { region: "Frankfurt", host: "steamcdn-a.akamaihd.net" },
-    { region: "Dubai",     host: "cdn.steamstatic.com" },
+  CS2: [
+    { region: "United Arab Emirates", host: "ae.pool.ntp.org" },
+    { region: "EU Stockholm",         host: "se.pool.ntp.org" },
+    { region: "India Mumbai",         host: "in.pool.ntp.org" },
+    { region: "EU Amsterdam",         host: "nl.pool.ntp.org" },
+    { region: "EU Helsinki",          host: "hel1-speed.hetzner.com" },
+    { region: "EU Frankfurt",         host: "de.pool.ntp.org" },
+    { region: "United Kingdom",       host: "uk.pool.ntp.org" },
+    { region: "EU Warsaw",            host: "pl.pool.ntp.org" },
+    { region: "EU Falkenstein",       host: "fsn1-speed.hetzner.com" },
+    { region: "India Chennai",        host: "in.pool.ntp.org" },
   ],
-  Riot: [
-    { region: "Frankfurt", host: "euw1.leagueoflegends.com" },
-    { region: "Tehran",    host: "static.developer.riotgames.com" },
+  Dota2: [
+    { region: "Dubai",        host: "ae.pool.ntp.org" },
+    { region: "Europe West",  host: "lu.pool.ntp.org" },
+    { region: "Europe East",  host: "at.pool.ntp.org" },
+    { region: "Russia",       host: "ru.pool.ntp.org" },
+    { region: "India",        host: "in.pool.ntp.org" },
+    { region: "SE Asia",      host: "sg.pool.ntp.org" },
   ],
   Discord: [
     { region: "Frankfurt", host: "discord.com" },

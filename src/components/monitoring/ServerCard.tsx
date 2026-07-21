@@ -1,7 +1,24 @@
+import { useEffect, useState } from "react";
 import type { ServerStatus } from "@/lib/monitoring-types";
+import { loadSettings, type GaugeSettings } from "@/lib/gauge-settings";
 import { MetricBar } from "./MetricBar";
 
+function useGaugeSettings(): GaugeSettings {
+  const [s, setS] = useState<GaugeSettings>(() => loadSettings());
+  useEffect(() => {
+    const h = () => setS(loadSettings());
+    window.addEventListener("exir:gauge-settings", h);
+    window.addEventListener("storage", h);
+    return () => {
+      window.removeEventListener("exir:gauge-settings", h);
+      window.removeEventListener("storage", h);
+    };
+  }, []);
+  return s;
+}
+
 export function ServerCard({ server }: { server: ServerStatus }) {
+  const settings = useGaugeSettings();
   const ramPct = (server.ramUsed / server.ramTotal) * 100;
 
   return (
@@ -29,12 +46,12 @@ export function ServerCard({ server }: { server: ServerStatus }) {
         </div>
 
         <div className="grid min-w-[280px] flex-1 grid-cols-2 gap-x-6 gap-y-3">
-          <MetricBar label="GPU °C" value={server.gpuTemp} unit="°" max={100} thresholds={{ warn: 70, crit: 80 }} />
-          <MetricBar label="CPU °C" value={server.cpuTemp} unit="°" max={100} thresholds={{ warn: 70, crit: 80 }} />
-          <MetricBar label="GPU Load" value={server.gpuUsage} />
-          <MetricBar label="CPU Load" value={server.cpuUsage} />
+          <MetricBar label="GPU °C" value={server.gpuTemp} unit="°" max={100} thresholds={{ warn: 70, crit: 80 }} bands={settings.gpu} colorMode={settings.colorMode} gradient={settings.gradient} />
+          <MetricBar label="CPU °C" value={server.cpuTemp} unit="°" max={100} thresholds={{ warn: 70, crit: 80 }} bands={settings.cpu} colorMode={settings.colorMode} gradient={settings.gradient} />
+          <MetricBar label="GPU Load" value={server.gpuUsage} bands={settings.gpu} colorMode={settings.colorMode} gradient={settings.gradient} />
+          <MetricBar label="CPU Load" value={server.cpuUsage} bands={settings.cpu} colorMode={settings.colorMode} gradient={settings.gradient} />
           <div className="col-span-2">
-            <MetricBar label="RAM" value={ramPct} thresholds={{ warn: 70, crit: 85 }} />
+            <MetricBar label="RAM" value={ramPct} thresholds={{ warn: 70, crit: 85 }} bands={settings.gpu} colorMode={settings.colorMode} gradient={settings.gradient} />
           </div>
         </div>
       </div>

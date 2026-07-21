@@ -60,7 +60,7 @@ export function GamePlatformsPanel() {
   const down = items.find((x) => x.level === "down");
 
   return (
-    <div className="mb-3 rounded-xl p-3 glass-panel">
+    <div className="rounded-xl p-3 glass-panel">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
           <Gamepad2 size={12} /> ▸ game platforms

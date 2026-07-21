@@ -183,7 +183,7 @@ export function EpicCdnDiscovery() {
 
       {/* Recommendations banner (phase 4) — always shown when we have any */}
       {recommendations.length > 0 && (
-        <div className="mb-2 rounded-md border p-2" style={{ borderColor: "var(--neon-amber)55", background: "var(--neon-amber)0d" }}>
+        <div className="mb-2 rounded-md border p-2" style={{ borderColor: "color-mix(in oklab, var(--neon-amber) 55%, transparent)" }}>
           <div className="mb-1 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--neon-amber)" }}>
             <AlertTriangle size={11} /> smart recommendations · {recommendations.length}
           </div>
@@ -203,7 +203,7 @@ export function EpicCdnDiscovery() {
                     key={l}
                     onClick={() => downloadExtras(l)}
                     className="flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider hover:brightness-125"
-                    style={{ borderColor: "var(--neon-amber)66", color: "var(--neon-amber)" }}
+                    style={{ borderColor: "color-mix(in oklab, var(--neon-amber) 66%, transparent)", color: "var(--neon-amber)" }}
                   >
                     <Download size={10} /> {l.toLowerCase()}-extra.txt
                   </button>

@@ -24,6 +24,7 @@ export interface ProcessLogEntry {
 
 const EVT = "exir:process-history";
 const KEY = (machine: string) => `exir.process-history.${machine}`;
+const STATE_KEY = (machine: string) => `exir.process-history-state.${machine}`;
 
 const store: Record<string, ProcessLogEntry[]> = {};
 const lastState: Record<string, { online: boolean; process: string }> = {};
@@ -60,13 +61,40 @@ function persist(machine: string) {
   }
 }
 
+/** Reads the last-known online/process state for a machine, falling back to
+ * localStorage on the first call after a fresh page load. Without this, a
+ * plain page refresh (e.g. leaving and returning from the shop) would look
+ * identical to "client just came online" and wipe the log every time. */
+function readLastState(machine: string): { online: boolean; process: string } | undefined {
+  if (lastState[machine]) return lastState[machine];
+  try {
+    const raw = localStorage.getItem(STATE_KEY(machine));
+    if (raw) {
+      lastState[machine] = JSON.parse(raw) as { online: boolean; process: string };
+      return lastState[machine];
+    }
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+function writeLastState(machine: string, state: { online: boolean; process: string }) {
+  lastState[machine] = state;
+  try {
+    localStorage.setItem(STATE_KEY(machine), JSON.stringify(state));
+  } catch {
+    /* ignore quota errors */
+  }
+}
+
 /** Call once per poll tick with the latest client list (mock or live). */
 export function recordTick(clients: ClientStatus[]): void {
   const now = Date.now();
   for (const c of clients) {
     const machine = c.machine;
     const online = c.online !== false;
-    const prev = lastState[machine];
+    const prev = readLastState(machine);
     const list = load(machine);
 
     if (!online) {
@@ -75,7 +103,7 @@ export function recordTick(clients: ClientStatus[]): void {
       // it stays offline.
       if (!prev || prev.online !== false) {
         store[machine] = [];
-        lastState[machine] = { online: false, process: "" };
+        writeLastState(machine, { online: false, process: "" });
         persist(machine);
       }
       continue;
@@ -83,10 +111,19 @@ export function recordTick(clients: ClientStatus[]): void {
 
     const proc = normalize(c.topProcess);
 
-    if (!prev || prev.online === false) {
-      // Freshly online (or first tick ever) — start a clean log.
+    if (!prev) {
+      // First tick ever for this machine (no saved state at all, even in
+      // localStorage) — start a clean log.
       store[machine] = proc ? [{ process: proc, startedAt: now, endedAt: null }] : [];
-      lastState[machine] = { online: true, process: proc };
+      writeLastState(machine, { online: true, process: proc });
+      persist(machine);
+      continue;
+    }
+
+    if (prev.online === false) {
+      // Genuinely went offline→online — start a fresh log.
+      store[machine] = proc ? [{ process: proc, startedAt: now, endedAt: null }] : [];
+      writeLastState(machine, { online: true, process: proc });
       persist(machine);
       continue;
     }
@@ -95,7 +132,7 @@ export function recordTick(clients: ClientStatus[]): void {
       const open = list[list.length - 1];
       if (open && open.endedAt === null) open.endedAt = now;
       if (proc) list.push({ process: proc, startedAt: now, endedAt: null });
-      lastState[machine] = { online: true, process: proc };
+      writeLastState(machine, { online: true, process: proc });
       persist(machine);
     }
   }

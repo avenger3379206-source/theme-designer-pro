@@ -236,61 +236,6 @@
 
 /* Glass Aurora — same layout, heavier blur, softer neon */
 [data-theme="glass-aurora"] {
-  /* placeholder — real block below */
-}
-
-/* Ocean Deep — image "1111" EXIR GAMENET console: deep teal ocean base with
-   bright cyan HUD accents. Restrained glow, thin cyan borders, subtle grid. */
-[data-theme="ocean-deep"] {
-  --background: oklch(0.14 0.04 220);
-  --foreground: oklch(0.96 0.02 210);
-  --surface: oklch(0.19 0.05 220 / 0.72);
-  --surface-elevated: oklch(0.24 0.06 220 / 0.85);
-  --card: oklch(0.19 0.05 220 / 0.78);
-  --card-foreground: oklch(0.96 0.02 210);
-  --popover: oklch(0.16 0.05 220);
-  --popover-foreground: oklch(0.96 0.02 210);
-  --primary: oklch(0.82 0.14 200);
-  --primary-foreground: oklch(0.12 0.03 220);
-  --secondary: oklch(0.24 0.05 220);
-  --secondary-foreground: oklch(0.96 0.02 210);
-  --muted: oklch(0.22 0.04 220);
-  --muted-foreground: oklch(0.72 0.05 210);
-  --accent: oklch(0.32 0.09 210);
-  --accent-foreground: oklch(0.96 0.02 210);
-  --border: oklch(0.55 0.12 210 / 0.35);
-  --input: oklch(0.24 0.05 220);
-  --ring: oklch(0.82 0.14 200);
-  --neon-cyan: oklch(0.85 0.16 200);
-  --neon-magenta: oklch(0.78 0.2 320);
-  --neon-green: oklch(0.82 0.22 155);
-  --neon-amber: oklch(0.85 0.18 75);
-  --neon-red: oklch(0.7 0.24 25);
-}
-[data-theme="ocean-deep"] {
-  background:
-    radial-gradient(ellipse at 20% 0%, oklch(0.22 0.08 210 / 0.55), transparent 60%),
-    radial-gradient(ellipse at 80% 100%, oklch(0.2 0.1 200 / 0.35), transparent 60%),
-    linear-gradient(180deg, oklch(0.11 0.04 225), oklch(0.15 0.05 215));
-}
-[data-theme="ocean-deep"] .glass-panel {
-  background: linear-gradient(180deg, oklch(0.2 0.05 220 / 0.7), oklch(0.13 0.04 220 / 0.82));
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid oklch(0.7 0.14 200 / 0.28);
-  box-shadow:
-    0 0 0 1px oklch(0.85 0.16 200 / 0.06) inset,
-    0 10px 32px -12px oklch(0 0 0 / 0.7);
-}
-[data-theme="ocean-deep"] .neon-border-cyan {
-  border-color: oklch(0.85 0.16 200 / 0.55);
-  box-shadow:
-    0 0 0 1px oklch(0.85 0.16 200 / 0.18) inset,
-    0 0 22px -4px oklch(0.85 0.16 200 / 0.55);
-}
-
-/* Glass Aurora — same layout, heavier blur, softer neon */
-[data-theme="glass-aurora"] {
   --background: oklch(0.13 0.03 260);
   --surface: oklch(0.24 0.05 260 / 0.35);
   --surface-elevated: oklch(0.3 0.06 260 / 0.45);
@@ -426,6 +371,18 @@
     0 10px 30px -10px oklch(0 0 0 / 0.7);
 }
 
+/* ── Kill the generic hairline borders ───────────────────────────────
+   `border-border` (the plain Tailwind `border` utility) is used all over
+   the app for small boxes/dividers/inputs. On a dark background that
+   grayish line reads as an unwanted "white" outline, so it's switched
+   off globally here — after all theme blocks, so it wins in every theme.
+   This does NOT touch .glass-panel / .neon-border-* / inline neon
+   borders, which set their own border color directly and are untouched. */
+:root,
+[data-theme] {
+  --border: transparent;
+}
+
 /* ============================================================
  * Dashboard LAYOUTS — reshape client cards (data-card="client")
  * and their grid container (data-clients-grid).
@@ -548,5 +505,71 @@
   transform: scale(0.7);
   transform-origin: left center;
   margin-right: -30px;
+}
+
+/* ── Neon scrollbars ──────────────────────────────────────────────────
+   The browser default (light/white) scrollbar clashes hard with this
+   neon-on-black theme. Apply a thin, glowing, theme-matching scrollbar
+   everywhere — Firefox via scrollbar-color, Chrome/Safari/Edge via the
+   ::-webkit-scrollbar pseudo-elements.
+
+   Colors/width/glow are driven by CSS custom properties so Settings ▸
+   Scrollbar (src/lib/scrollbar-settings.ts) can override them live via
+   inline styles on <html> — that wins over these :root defaults. */
+:root {
+  --scrollbar-thumb: var(--neon-cyan);
+  --scrollbar-track: transparent;
+  --scrollbar-width: 7px;
+  --scrollbar-shadow: 0 0 6px var(--neon-cyan);
+  --scrollbar-shadow-hover: 0 0 12px var(--neon-cyan);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+*::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+  height: var(--scrollbar-width);
+}
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-shadow: var(--scrollbar-shadow);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+  box-shadow: var(--scrollbar-shadow-hover);
+}
+*::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
+}
+
+/* Slightly slimmer variant for small in-card scroll areas (e.g. the
+   cache-activity log columns). Same custom properties, just thinner. */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+.thin-scroll::-webkit-scrollbar {
+  width: calc(var(--scrollbar-width) - 2px);
+  height: calc(var(--scrollbar-width) - 2px);
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  box-shadow: var(--scrollbar-shadow);
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb);
+  box-shadow: var(--scrollbar-shadow-hover);
 }
 

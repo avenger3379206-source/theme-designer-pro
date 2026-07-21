@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { Band } from "@/lib/gauge-settings";
-import { colorFor } from "@/lib/gauge-settings";
+import type { Band, ColorMode, GradientPreset } from "@/lib/gauge-settings";
+import { colorFor, gradientColorAt, gradientCss, gradientFillCss } from "@/lib/gauge-settings";
 
 interface MetricBarProps {
   label: ReactNode;
@@ -9,6 +9,8 @@ interface MetricBarProps {
   max?: number;
   thresholds?: { warn: number; crit: number };
   bands?: Band[];
+  colorMode?: ColorMode;
+  gradient?: GradientPreset;
 }
 
 export function MetricBar({
@@ -18,15 +20,32 @@ export function MetricBar({
   max = 100,
   thresholds = { warn: 70, crit: 85 },
   bands,
+  colorMode = "bands",
+  gradient,
 }: MetricBarProps) {
   const pct = Math.min(100, (value / max) * 100);
-  const color = bands
-    ? colorFor(bands, value)
-    : value >= thresholds.crit
+  const frac = value / max;
+
+  let color: string;
+  let fill: string;
+  if (colorMode === "gradientFill" && gradient) {
+    // Show the full gradient spectrum up to the current value
+    color = gradientColorAt(gradient, frac);
+    fill = gradientFillCss(gradient, Math.max(frac, 0.001), 0);
+  } else if (colorMode === "gradient" && gradient) {
+    color = gradientColorAt(gradient, frac);
+    fill = gradientCss(gradient, 0);
+  } else if (bands) {
+    color = colorFor(bands, value);
+    fill = color;
+  } else {
+    color = value >= thresholds.crit
       ? "var(--neon-red)"
       : value >= thresholds.warn
         ? "var(--neon-amber)"
         : "var(--neon-cyan)";
+    fill = color;
+  }
 
   return (
     <div>
@@ -42,7 +61,7 @@ export function MetricBar({
           className="h-full rounded-full transition-all duration-500"
           style={{
             width: `${pct}%`,
-            background: `linear-gradient(90deg, ${color}, ${color})`,
+            background: fill,
             boxShadow: `0 0 8px ${color}`,
           }}
         />

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { Cpu, MemoryStick, Thermometer, TriangleAlert, Loader2, Check, X, Monitor, Wifi } from "lucide-react";
 import type { ClientStatus } from "@/lib/monitoring-types";
 import { CircularGauge } from "./CircularGauge";
-import { loadSettings, colorFor, type GaugeSettings } from "@/lib/gauge-settings";
+import { loadSettings, colorFor, gradientColorAt, type GaugeSettings } from "@/lib/gauge-settings";
 import { ipFromMachine, type ClientCache } from "@/lib/cache-activity";
 import { CACHE_EVT } from "./CacheActivityPanel";
 import { CLIENT_PING_EVT, type ClientPing } from "@/lib/client-ping";
@@ -277,7 +277,9 @@ export function ClientCard({ client, onClick }: Props) {
   const lanLoss = lanMs === -1;
   const lanColor = lanMs === null || lanLoss
     ? "var(--neon-red)"
-    : colorFor(settings.ping, lanMs);
+    : (settings.colorMode === "gradient" || settings.colorMode === "gradientFill")
+      ? gradientColorAt(settings.gradient, lanMs / 300)
+      : colorFor(settings.ping, lanMs);
   // Blink red if the highest ping band was exceeded in the last ~20s window.
   const highBand = [...settings.ping].sort((a, b) => a.max - b.max);
   const critMax = highBand[highBand.length - 2]?.max ?? 80;
@@ -289,7 +291,9 @@ export function ClientCard({ client, onClick }: Props) {
     ? "oklch(0.5 0.02 250)"
     : gameMs < 0
       ? "var(--neon-red)"
-      : colorFor(settings.ping, gameMs);
+      : (settings.colorMode === "gradient" || settings.colorMode === "gradientFill")
+        ? gradientColorAt(settings.gradient, gameMs / 300)
+        : colorFor(settings.ping, gameMs);
 
 
   // short gpu model: "NVIDIA GeForce RTX 3070" -> "RTX 3070"
@@ -380,6 +384,10 @@ export function ClientCard({ client, onClick }: Props) {
               value={client.gpuTemp}
               size={54}
               bands={settings.gpu}
+              shape={settings.clientShape}
+              colorMode={settings.colorMode}
+              gradient={settings.gradient}
+              strokeWidth={settings.strokeWidth}
             />
             <CircularGauge
               label="AVG"
@@ -387,6 +395,10 @@ export function ClientCard({ client, onClick }: Props) {
               value={Math.round((client.gpuTemp + client.cpuTemp) / 2)}
               size={62}
               bands={settings.gpu}
+              shape={settings.clientShape}
+              colorMode={settings.colorMode}
+              gradient={settings.gradient}
+              strokeWidth={settings.strokeWidth}
             />
             <CircularGauge
               label="CPU"
@@ -394,6 +406,10 @@ export function ClientCard({ client, onClick }: Props) {
               value={client.cpuTemp}
               size={54}
               bands={settings.cpu}
+              shape={settings.clientShape}
+              colorMode={settings.colorMode}
+              gradient={settings.gradient}
+              strokeWidth={settings.strokeWidth}
             />
           </div>
 
@@ -405,14 +421,10 @@ export function ClientCard({ client, onClick }: Props) {
           </div>
 
           {/* Live ping pill — replaces the old IDLE cache pill.
-              Left: LAN ping. Right: actual in-game server ping from the VIP. */}
+              Left: LAN ping. Right: actual in-game server ping from the VIP.
+              No border/box around it anymore — just the row of text. */}
           <div
-            className={`relative mt-2 flex items-center justify-between rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-widest ${shouldBlink ? "animate-pulse" : ""}`}
-            style={{
-              borderColor: `${lanColor}55`,
-              background: `${lanColor}0d`,
-              boxShadow: shouldBlink ? `0 0 10px ${lanColor}88` : undefined,
-            }}
+            className={`relative mt-2 flex items-center justify-between px-2 py-1 font-mono text-[10px] uppercase tracking-widest ${shouldBlink ? "animate-pulse" : ""}`}
             title={ping ? `LAN ${ping.ip}${ping.gameHost ? ` · game ${ping.gameHost}${ping.gamePort ? `:${ping.gamePort}` : ""}` : ""}` : ""}
           >
             <span className="flex items-center gap-1" style={{ color: lanColor }}>

@@ -46,7 +46,12 @@ function normSteam(raw: unknown): Service[] {
     let level: Level = "unknown";
     if (status === "good") level = "ok";
     else if (status === "minor" || status === "slow" || status === "surveying") level = "warn";
-    else if (status === "major" || status === "critical" || status === "offline" || status === "no_data")
+    else if (
+      status === "major" ||
+      status === "critical" ||
+      status === "offline" ||
+      status === "no_data"
+    )
       level = "down";
     out.push({ name, level, note: label });
   }
@@ -127,29 +132,32 @@ function Column({
   items: Service[];
 }) {
   return (
-    <div className="rounded-lg border border-border/60 bg-surface/50 p-2.5">
+    <div className="rounded-lg border border-border/60 bg-surface/50 p-2">
       <div
-        className="mb-1.5 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-widest"
+        className="mb-1 flex items-center gap-1.5 font-mono text-[9px] font-bold uppercase tracking-widest"
         style={{ color: accent, textShadow: `0 0 6px ${accent}55` }}
       >
         {icon}
         <span>{title}</span>
       </div>
-      <ul className="space-y-0.5">
+      <ul className="space-y-0">
         {items.length === 0 ? (
-          <li className="font-mono text-[10px] text-muted-foreground">no data</li>
+          <li className="font-mono text-[9px] text-muted-foreground">no data</li>
         ) : (
           items.map((s) => (
             <li
               key={s.name}
-              className="flex items-center justify-between gap-2 font-mono text-[11px] leading-tight"
+              className="flex items-center justify-between gap-2 font-mono text-[10px] leading-tight"
               title={s.note ?? s.level}
             >
               <span className="flex items-center gap-1.5 truncate">
                 <Dot level={s.level} />
                 <span className="truncate text-foreground/90">{s.name}</span>
               </span>
-              <span className="text-[9px] uppercase tracking-wider" style={{ color: levelColor(s.level) }}>
+              <span
+                className="text-[8px] uppercase tracking-wider"
+                style={{ color: levelColor(s.level) }}
+              >
                 {s.level}
               </span>
             </li>
@@ -179,14 +187,14 @@ export function SteamEpicStatus() {
 
   const updated = b ? new Date(b.updated).toLocaleTimeString() : "…";
   return (
-    <div className="mb-3 rounded-xl p-3 glass-panel">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="rounded-xl p-2.5 glass-panel">
+      <div className="mb-1.5 flex items-center justify-between">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
           ▸ launcher status
         </h3>
         <span className="font-mono text-[9px] text-muted-foreground">refresh 30s · {updated}</span>
       </div>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <Column
           title="Steam (CS2 · Dota)"
           icon={<Gamepad2 size={12} />}

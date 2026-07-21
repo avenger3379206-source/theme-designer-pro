@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Database, Zap, Cloud, Activity } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Database, Zap, Cloud, Activity, CheckCircle2, XCircle, CircleDashed } from "lucide-react";
 import {
   aggregate,
   fetchCacheTail,
@@ -24,7 +24,6 @@ export function CacheActivityPanel() {
   const [cfg, setCfg] = useState<CacheSshConfig>(() => loadCacheSsh());
   const [lines, setLines] = useState<CacheLine[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const h = () => setCfg(loadCacheSsh());
@@ -95,11 +94,38 @@ export function CacheActivityPanel() {
     return { active, internet, idle: Math.max(0, idle), hitRatio, speed };
   }, [perClient]);
 
-  // Auto-scroll horizontal log
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollLeft = el.scrollWidth;
-  }, [lines.length]);
+  // Split the log lines into three buckets — newest first — one per status
+  // column (HIT / MISS / OTHER). Each status is filtered from the *full*
+  // history independently (not a shared recent-N window), so a less-common
+  // status doesn't get crowded out and appear empty when overall volume is high.
+  const { hitLines, missLines, otherLines } = useMemo(() => {
+    const byStatus = (pred: (l: CacheLine) => boolean) =>
+      lines.filter(pred).slice(-80).reverse();
+    return {
+      hitLines: byStatus((l) => l.status === "HIT"),
+      missLines: byStatus((l) => l.status === "MISS"),
+      otherLines: byStatus((l) => l.status !== "HIT" && l.status !== "MISS"),
+    };
+  }, [lines]);
+
+  // Overall HIT/MISS/OTHER split across the full buffered log — feeds the
+  // ratio donut. Deliberately independent of the 80-line display cap above
+  // so the chart reflects the whole session, not just what's on screen.
+  const ratio = useMemo(() => {
+    let hit = 0, miss = 0, other = 0;
+    for (const l of lines) {
+      if (l.status === "HIT") hit++;
+      else if (l.status === "MISS") miss++;
+      else other++;
+    }
+    const total = hit + miss + other;
+    return {
+      hitPct: total ? Math.round((hit / total) * 100) : 0,
+      missPct: total ? Math.round((miss / total) * 100) : 0,
+      otherPct: total ? Math.round((other / total) * 100) : 0,
+      total,
+    };
+  }, [lines]);
 
   const disabled = !cfg.enabled || !cfg.host || !cfg.user;
 
@@ -122,21 +148,150 @@ export function CacheActivityPanel() {
       </div>
 
       <div className="mt-3 rounded-md border border-border/60 bg-black/40 p-1.5">
-        <div className="mb-1 flex items-center justify-between px-1">
+        <div className="mb-1.5 flex items-center justify-between px-1">
           <span className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground">▸ live access.log</span>
           <span className="font-mono text-[9px] text-muted-foreground">{lines.length} lines · {POLL_MS / 1000}s poll</span>
         </div>
-        <div ref={scrollRef} className="flex gap-1.5 overflow-x-auto whitespace-nowrap py-1 font-mono text-[10px]" style={{ scrollbarWidth: "thin" }}>
-          {lines.slice(-120).map((l, i) => {
-            const c = l.status === "HIT" ? "var(--neon-green)" : l.status === "MISS" ? "var(--neon-red)" : "oklch(0.6 0.02 250)";
-            return (
-              <span key={i} className="shrink-0 rounded border px-1.5 py-0.5" style={{ borderColor: `${c}55`, color: c }} title={l.raw}>
-                <b>{l.status}</b> · {l.service} · {l.ip.split(".").pop()} · {(l.bytes / 1024).toFixed(0)}KB
-              </span>
-            );
-          })}
-          {lines.length === 0 && <span className="px-2 text-muted-foreground">— no data —</span>}
+        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_auto] gap-1.5">
+          <LogColumn
+            label="HIT"
+            icon={<CheckCircle2 size={11} />}
+            color="var(--neon-green)"
+            entries={hitLines}
+          />
+          <LogColumn
+            label="MISS"
+            icon={<XCircle size={11} />}
+            color="var(--neon-red)"
+            entries={missLines}
+          />
+          <LogColumn
+            label="OTHER"
+            icon={<CircleDashed size={11} />}
+            color="oklch(0.6 0.02 250)"
+            entries={otherLines}
+          />
+          <CacheRatioDonut
+            hitPct={ratio.hitPct}
+            missPct={ratio.missPct}
+            otherPct={ratio.otherPct}
+          />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LogColumn({
+  label,
+  icon,
+  color,
+  entries,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  entries: CacheLine[];
+}) {
+  const tint = (pct: number) => `color-mix(in oklab, ${color} ${pct}%, transparent)`;
+  return (
+    <div className="rounded-lg border p-1.5" style={{ borderColor: tint(40) }}>
+      <div
+        className="mb-1 flex items-center justify-between border-b pb-1 font-mono text-[9px] font-bold uppercase tracking-widest"
+        style={{ borderColor: tint(30), color }}
+      >
+        <span className="flex items-center gap-1">
+          {icon} {label}
+        </span>
+        <span>{entries.length}</span>
+      </div>
+      <div
+        className="thin-scroll flex flex-col gap-1 overflow-y-auto pe-0.5"
+        style={{ maxHeight: 80 }}
+      >
+        {entries.length === 0 && (
+          <span className="flex h-6 items-center justify-center px-1 font-mono text-[9px] text-muted-foreground">
+            — no data —
+          </span>
+        )}
+        {entries.map((l, i) => (
+          <div
+            key={i}
+            className="flex h-6 shrink-0 items-center truncate rounded border px-1.5 font-mono text-[10px]"
+            style={{ borderColor: tint(55), color }}
+            title={l.raw}
+          >
+            {l.service} · {l.ip.split(".").pop()} · {(l.bytes / 1024).toFixed(0)}KB
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CacheRatioDonut({
+  hitPct,
+  missPct,
+  otherPct,
+}: {
+  hitPct: number;
+  missPct: number;
+  otherPct: number;
+}) {
+  const hitColor = "var(--neon-green)";
+  const missColor = "var(--neon-red)";
+  const otherColor = "oklch(0.6 0.02 250)";
+
+  const r = 30;
+  const c = 2 * Math.PI * r;
+  const hitLen = (hitPct / 100) * c;
+  const missLen = (missPct / 100) * c;
+  const otherLen = Math.max(c - hitLen - missLen, 0);
+
+  const rows = [
+    { label: "HIT", pct: hitPct, color: hitColor },
+    { label: "MISS", pct: missPct, color: missColor },
+    { label: "OTHER", pct: otherPct, color: otherColor },
+  ];
+
+  return (
+    <div className="flex h-full items-center gap-2 rounded-lg border border-border/60 bg-surface/50 p-1.5">
+      <div className="relative shrink-0">
+        <svg viewBox="0 0 72 72" width="60" height="60" className="-rotate-90">
+          <circle cx="36" cy="36" r={r} fill="none" stroke="oklch(0.32 0.02 250)" strokeWidth="8" />
+          {hitLen > 0 && (
+            <circle
+              cx="36" cy="36" r={r} fill="none" stroke={hitColor} strokeWidth="8"
+              strokeDasharray={`${hitLen} ${c - hitLen}`} strokeLinecap="round"
+            />
+          )}
+          {missLen > 0 && (
+            <circle
+              cx="36" cy="36" r={r} fill="none" stroke={missColor} strokeWidth="8"
+              strokeDasharray={`${missLen} ${c - missLen}`} strokeDashoffset={-hitLen} strokeLinecap="round"
+            />
+          )}
+          {otherLen > 0 && (
+            <circle
+              cx="36" cy="36" r={r} fill="none" stroke={otherColor} strokeWidth="8"
+              strokeDasharray={`${otherLen} ${c - otherLen}`} strokeDashoffset={-(hitLen + missLen)} strokeLinecap="round"
+            />
+          )}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-mono text-[13px] font-black leading-none" style={{ color: hitColor, textShadow: `0 0 6px ${hitColor}55` }}>
+            {hitPct}%
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1 pe-1">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest whitespace-nowrap">
+            <span className="size-1.5 shrink-0 rounded-full" style={{ background: row.color, boxShadow: `0 0 4px ${row.color}` }} />
+            <span style={{ color: row.color }}>{row.label}</span>
+            <span className="text-muted-foreground">{row.pct}%</span>
+          </div>
+        ))}
       </div>
     </div>
   );

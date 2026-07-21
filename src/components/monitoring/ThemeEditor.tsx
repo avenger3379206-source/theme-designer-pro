@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
-import { Palette, Check, LayoutGrid } from "lucide-react";
+import { Palette, Check, LayoutGrid, MousePointer2, RotateCcw } from "lucide-react";
 import {
   THEMES, loadTheme, saveTheme, type ThemeId,
   LAYOUTS, loadLayout, saveLayout, type LayoutId,
 } from "@/lib/theme";
+import {
+  DEFAULT_SCROLLBAR_SETTINGS,
+  loadScrollbarSettings,
+  saveScrollbarSettings,
+  type ScrollbarSettings,
+} from "@/lib/scrollbar-settings";
 
 export function ThemeEditor() {
   const [current, setCurrent] = useState<ThemeId>(() => loadTheme());
   const [layout, setLayout] = useState<LayoutId>(() => loadLayout());
+  const [scroll, setScroll] = useState<ScrollbarSettings>(() => loadScrollbarSettings());
 
   useEffect(() => {
     const h = () => setCurrent(loadTheme());
@@ -19,6 +26,12 @@ export function ThemeEditor() {
       window.removeEventListener("exir:layout", l);
     };
   }, []);
+
+  function updateScroll(patch: Partial<ScrollbarSettings>) {
+    const next = { ...scroll, ...patch };
+    setScroll(next);
+    saveScrollbarSettings(next);
+  }
 
   return (
     <section className="mb-6 rounded-xl glass-panel p-5 neon-border-cyan">
@@ -129,6 +142,97 @@ export function ThemeEditor() {
             </button>
           );
         })}
+      </div>
+
+      {/* ── Scrollbar ──────────────────────────────────────────────── */}
+      <div className="mt-8 mb-4 flex items-center gap-2">
+        <MousePointer2 size={16} className="text-cyan-300" />
+        <h2 className="font-mono text-sm font-bold uppercase tracking-[0.25em] text-glow-cyan">
+          Scrollbar · اسکرول‌بار
+        </h2>
+      </div>
+      <p className="mb-4 font-mono text-[11px] text-muted-foreground">
+        رنگ خود اسکرول، رنگ زمینه‌ی پشت اون، و عرضش رو تنظیم کن. تغییرات فوری روی کل پروژه اعمال می‌شه.
+      </p>
+
+      <div className="flex flex-col gap-4 rounded-lg border border-cyan-500/20 bg-surface/40 p-3 sm:flex-row sm:items-center sm:gap-6">
+        <label className="flex items-center justify-between gap-3 sm:flex-col sm:items-start sm:justify-start">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            رنگ اسکرول
+          </span>
+          <input
+            type="color"
+            value={scroll.thumbColor}
+            onChange={(e) => updateScroll({ thumbColor: e.target.value })}
+            className="h-9 w-16 cursor-pointer rounded border border-border/60 bg-transparent p-0.5"
+          />
+        </label>
+
+        <label className="flex items-center justify-between gap-3 sm:flex-col sm:items-start sm:justify-start">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            رنگ زمینه اسکرول
+          </span>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={scroll.trackColor === "transparent" ? "#000000" : scroll.trackColor}
+              onChange={(e) => updateScroll({ trackColor: e.target.value })}
+              className="h-9 w-16 cursor-pointer rounded border border-border/60 bg-transparent p-0.5"
+            />
+            <button
+              onClick={() => updateScroll({ trackColor: "transparent" })}
+              className={
+                "rounded border px-2 py-1.5 font-mono text-[9px] uppercase tracking-wider " +
+                (scroll.trackColor === "transparent"
+                  ? "border-cyan-400/70 bg-cyan-500/10 text-cyan-300"
+                  : "border-border/60 text-muted-foreground hover:text-foreground")
+              }
+            >
+              شفاف
+            </button>
+          </div>
+        </label>
+
+        <label className="flex flex-1 flex-col gap-2">
+          <span className="flex items-center justify-between font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            عرض اسکرول <span className="text-foreground">{scroll.width}px</span>
+          </span>
+          <input
+            type="range"
+            min={3}
+            max={16}
+            step={1}
+            value={scroll.width}
+            onChange={(e) => updateScroll({ width: Number(e.target.value) })}
+            className="w-full accent-cyan-400"
+          />
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={scroll.glow}
+            onChange={(e) => updateScroll({ glow: e.target.checked })}
+            className="size-4 accent-cyan-400"
+          />
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            درخشش نئونی
+          </span>
+        </label>
+
+        <button
+          onClick={() => updateScroll(DEFAULT_SCROLLBAR_SETTINGS)}
+          className="flex items-center gap-1.5 self-start rounded border border-border/60 px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground hover:text-foreground sm:self-center"
+        >
+          <RotateCcw size={11} /> ریست
+        </button>
+      </div>
+
+      {/* Live preview strip so the effect is visible without hunting for a scrollbar. */}
+      <div className="thin-scroll mt-3 h-16 overflow-y-scroll rounded-md border border-cyan-500/20 bg-black/40 p-2 font-mono text-[10px] text-muted-foreground">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <div key={i}>preview line {i + 1} — پیش‌نمایش اسکرول</div>
+        ))}
       </div>
     </section>
   );

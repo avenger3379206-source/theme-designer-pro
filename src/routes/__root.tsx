@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyTheme, loadTheme, applyLayout, loadLayout } from "../lib/theme";
+import { applyScrollbarSettings, loadScrollbarSettings } from "../lib/scrollbar-settings";
 
 function NotFoundComponent() {
   return (
@@ -120,16 +121,20 @@ function RootComponent() {
   useEffect(() => {
     applyTheme(loadTheme());
     applyLayout(loadLayout());
+    applyScrollbarSettings(loadScrollbarSettings());
     const h = () => {
       applyTheme(loadTheme());
       applyLayout(loadLayout());
+      applyScrollbarSettings(loadScrollbarSettings());
     };
     window.addEventListener("exir:theme", h);
     window.addEventListener("exir:layout", h);
+    window.addEventListener("exir:scrollbar", h);
     window.addEventListener("storage", h);
     return () => {
       window.removeEventListener("exir:theme", h);
       window.removeEventListener("exir:layout", h);
+      window.removeEventListener("exir:scrollbar", h);
       window.removeEventListener("storage", h);
     };
   }, []);

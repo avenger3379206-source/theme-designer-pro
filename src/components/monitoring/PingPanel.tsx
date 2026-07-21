@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { PingTarget } from "@/lib/monitoring-types";
-import { colorFor, loadSettings, type GaugeSettings } from "@/lib/gauge-settings";
+import { colorFor, gradientColorAt, loadSettings, type GaugeSettings } from "@/lib/gauge-settings";
 
 const AVG_WINDOW_MS = 30_000;
 
@@ -62,7 +62,7 @@ export function PingPanel({ targets, onEdit }: Props) {
           const lastSample = t.history[t.history.length - 1];
           const last = lastSample?.v;
           const colorBasis = last !== undefined && last >= 0 ? last : avg;
-          const color = loss > 30 ? "#ef4444" : colorFor(settings.ping, colorBasis);
+          const color = loss > 30 ? "#ef4444" : (settings.colorMode === "gradient" || settings.colorMode === "gradientFill") ? gradientColorAt(settings.gradient, colorBasis / 300) : colorFor(settings.ping, colorBasis);
           // last 6 samples for sparkline
           const spark = t.history.slice(-6);
           const isEditing = editing === i;

@@ -94,7 +94,7 @@ export function InfraStatusPanel() {
   }
 
   return (
-    <div className="mb-3 rounded-xl p-3 glass-panel">
+    <div className="mb-3 rounded-xl p-3 glass-panel" style={{ borderColor: "var(--background)" }}>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
           <Network size={12} /> ▸ <span className="font-fa" lang="fa">وضعیت زیرساخت</span> · infrastructure
@@ -152,6 +152,13 @@ export function InfraStatusPanel() {
                 </span>
                 <span className="flex items-center gap-1">
                   <Pencil size={9} className="opacity-0 transition group-hover:opacity-70" />
+                  {h.viaRouter && (
+                    <Router
+                      size={10}
+                      title="پینگ از طریق روتر"
+                      style={{ color: "var(--neon-cyan)" }}
+                    />
+                  )}
                   <span
                     className="size-2 rounded-full pulse-dot"
                     style={{ background: color, boxShadow: `0 0 6px ${color}` }}
@@ -168,7 +175,6 @@ export function InfraStatusPanel() {
               </div>
               <div dir="ltr" className="text-left font-mono text-[9px] text-muted-foreground/80">
                 {h.host}
-                {h.viaRouter && <span className="mr-1 opacity-70">· via router</span>}
               </div>
               <div dir="rtl" className="font-fa text-right text-[9px] text-muted-foreground/60" lang="fa">{h.fa}</div>
             </button>
