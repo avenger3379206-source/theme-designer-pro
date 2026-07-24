@@ -1,5 +1,5 @@
 // Rolling persisted today-tallies for the daily report. The "day" rolls over
-// at 03:00 local time, matching the gamenet close/open cycle.
+// at 00:00 (midnight) local time, matching the gamenet close/open cycle.
 //
 // v3: now also tracks per-machine download bytes and per-service (game
 // category) bytes — sourced from LanCache access.log via CacheActivityPanel.
@@ -35,6 +35,57 @@ interface Counters {
   perCategoryDown: Record<string, number>;         // bytes by service
 }
 
+function hasStorage() {
+  return typeof window !== "undefined" && typeof localStorage !== "undefined";
+}
+
+// The rollover must happen at real midnight in Iran, regardless of what
+// timezone the PC/server's operating system clock is actually set to.
+// Relying on d.getFullYear()/getDate() uses the OS's configured timezone —
+// if that machine's clock is set to UTC (very common on servers) or anything
+// other than Asia/Tehran, "midnight" in the code fires hours late (or looks
+// like it never fires from the user's point of view), which is exactly the
+// "still shows yesterday's data" symptom. Intl.DateTimeFormat with an
+// explicit timeZone sidesteps the OS setting entirely.
+const TEHRAN_TZ = "Asia/Tehran";
+
+function tehranParts(d: Date) {
+  const fmt = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TEHRAN_TZ,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const parts = fmt.formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: Number(get("hour")),
+    minute: Number(get("minute")),
+    second: Number(get("second")),
+  };
+}
+
+function businessDate(d = new Date()): string {
+  // Rollover is midnight (Iran local time) — the business day is just the
+  // Tehran calendar day, computed independent of the OS's own timezone.
+  const { year, month, day } = tehranParts(d);
+  return `${year}-${month}-${day}`;
+}
+
+// Milliseconds remaining until the next real midnight in Tehran.
+function msUntilNextTehranMidnight(d = new Date()): number {
+  const { hour, minute, second } = tehranParts(d);
+  const elapsedMs = (hour * 3600 + minute * 60 + second) * 1000 + d.getMilliseconds();
+  return 24 * 60 * 60 * 1000 - elapsedMs;
+}
+
 let counters: Counters = fresh();
 
 function fresh(): Counters {
@@ -49,16 +100,6 @@ function fresh(): Counters {
     perMachineUp: {},
     perCategoryDown: {},
   };
-}
-
-function hasStorage() {
-  return typeof window !== "undefined" && typeof localStorage !== "undefined";
-}
-
-function businessDate(d = new Date()): string {
-  const shifted = new Date(d);
-  if (shifted.getHours() < 3) shifted.setDate(shifted.getDate() - 1);
-  return shifted.toISOString().slice(0, 10);
 }
 
 function loadCounters(): Counters {
@@ -203,14 +244,10 @@ export function fmtBytes(n: number): string {
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
-// Schedule a rollover for 03:00 tomorrow, then every 24h after.
+// Schedule a rollover for the next real midnight in Tehran, then every 24h after.
 export function startDailyScheduler() {
   ensureToday();
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(3, 0, 0, 0);
-  if (next.getTime() <= now.getTime()) next.setDate(next.getDate() + 1);
-  const delay = next.getTime() - now.getTime();
+  const delay = msUntilNextTehranMidnight();
   setTimeout(() => {
     rollover();
     setInterval(rollover, 24 * 60 * 60 * 1000);

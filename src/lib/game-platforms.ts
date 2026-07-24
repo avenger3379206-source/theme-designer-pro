@@ -65,32 +65,44 @@ export async function loadPlatforms(): Promise<PlatformStatus[]> {
 }
 
 // Latency targets per platform: { platform: [{region, host}] }
-// CS2 / Dota2 rows use per-country (or per-datacenter) public probes as a
-// stand-in for Valve's matchmaking datacenters, since those are only
-// reachable from inside the game (private relay IPs, no ICMP). Hetzner's
-// public speedtest hosts are used where they sit in the exact requested
-// city (Helsinki, Falkenstein); everywhere else we probe a well-known
-// public host physically located in that country/region.
+//
+// IMPORTANT: Valve's CS2/Dota2 matchmaking datacenters are private relay IPs
+// only reachable from inside the game (Steam Datagram Relay network). No public
+// ICMP ping can reach them. So we probe a well-known public host physically
+// located in the SAME city/region as each Valve datacenter — the geographic
+// distance (and thus the network path) is the same, so the ballpark latency
+// matches what you see in-game.
+//
+// We deliberately AVOID the NTP pool (xx.pool.ntp.org): it uses geo-DNS that
+// depends on the resolver's location, so ae.pool.ntp.org often resolves to a
+// server in Europe instead of the UAE when queried from an Iranian ISP —
+// producing 135ms for a region that should be ~43ms. Cloud-provider regional
+// endpoints (AWS ec2.<region>.amazonaws.com) resolve to fixed IPs in the exact
+// city and have direct peering with most ISPs, giving far more accurate results.
+//
+// ICMP latency will still differ slightly from in-game latency (Steam's SDR
+// relay network uses optimized private paths), but the geographic proximity
+// means the numbers are in the right ballpark instead of 3x too high.
 export const LATENCY_TARGETS: Record<string, { region: string; host: string }[]> = {
   CS2: [
-    { region: "United Arab Emirates", host: "ae.pool.ntp.org" },
-    { region: "EU Stockholm",         host: "se.pool.ntp.org" },
-    { region: "India Mumbai",         host: "in.pool.ntp.org" },
-    { region: "EU Amsterdam",         host: "nl.pool.ntp.org" },
-    { region: "EU Helsinki",          host: "hel1-speed.hetzner.com" },
-    { region: "EU Frankfurt",         host: "de.pool.ntp.org" },
-    { region: "United Kingdom",       host: "uk.pool.ntp.org" },
-    { region: "EU Warsaw",            host: "pl.pool.ntp.org" },
-    { region: "EU Falkenstein",       host: "fsn1-speed.hetzner.com" },
-    { region: "India Chennai",        host: "in.pool.ntp.org" },
+    { region: "United Arab Emirates", host: "ec2.me-central-1.amazonaws.com" }, // AWS UAE (Dubai)
+    { region: "EU Stockholm",         host: "ec2.eu-north-1.amazonaws.com" },    // AWS Stockholm
+    { region: "India Mumbai",         host: "ec2.ap-south-1.amazonaws.com" },    // AWS Mumbai
+    { region: "EU Amsterdam",         host: "ec2.eu-central-1.amazonaws.com" },  // AWS Frankfurt (~300km from AMS)
+    { region: "EU Helsinki",          host: "hel1-speed.hetzner.com" },           // Hetzner Helsinki
+    { region: "EU Frankfurt",         host: "ec2.eu-central-1.amazonaws.com" },  // AWS Frankfurt
+    { region: "United Kingdom",       host: "ec2.eu-west-2.amazonaws.com" },     // AWS London
+    { region: "EU Warsaw",            host: "ec2.eu-central-1.amazonaws.com" },  // AWS Frankfurt (closest to Warsaw)
+    { region: "EU Falkenstein",       host: "fsn1-speed.hetzner.com" },           // Hetzner Falkenstein
+    { region: "India Chennai",        host: "ec2.ap-south-1.amazonaws.com" },    // AWS Mumbai (closest to Chennai)
   ],
   Dota2: [
-    { region: "Dubai",        host: "ae.pool.ntp.org" },
-    { region: "Europe West",  host: "lu.pool.ntp.org" },
-    { region: "Europe East",  host: "at.pool.ntp.org" },
-    { region: "Russia",       host: "ru.pool.ntp.org" },
-    { region: "India",        host: "in.pool.ntp.org" },
-    { region: "SE Asia",      host: "sg.pool.ntp.org" },
+    { region: "Dubai",        host: "ec2.me-central-1.amazonaws.com" },   // AWS UAE (Dubai)
+    { region: "Europe West",  host: "ec2.eu-west-1.amazonaws.com" },      // AWS Ireland (Europe West)
+    { region: "Europe East",  host: "ec2.eu-central-1.amazonaws.com" },   // AWS Frankfurt (central EU)
+    { region: "Russia",       host: "ec2.eu-north-1.amazonaws.com" },     // AWS Stockholm (closest to western RU)
+    { region: "India",        host: "ec2.ap-south-1.amazonaws.com" },     // AWS Mumbai
+    { region: "SE Asia",      host: "ec2.ap-southeast-1.amazonaws.com" }, // AWS Singapore
   ],
   Discord: [
     { region: "Frankfurt", host: "discord.com" },

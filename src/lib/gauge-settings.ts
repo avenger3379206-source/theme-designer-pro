@@ -13,7 +13,8 @@ export type GaugeShape =
   | "octagon"
   | "hexagon"
   | "triangle"
-  | "square";
+  | "square"
+  | "needle";
 
 export type ColorMode = "bands" | "gradient" | "gradientFill";
 
@@ -138,6 +139,7 @@ export const SHAPE_OPTIONS: { value: GaugeShape; label: string }[] = [
   { value: "hexagon", label: "Hexagon" },
   { value: "triangle", label: "Triangle" },
   { value: "square", label: "Square" },
+  { value: "needle", label: "Needle" },
 ];
 
 export const DEFAULT_SETTINGS: GaugeSettings = {

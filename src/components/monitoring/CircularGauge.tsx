@@ -66,6 +66,43 @@ export function CircularGauge({
 
   const sw = strokeWidth;
 
+  // Needle gauge: custom layout — arc + needle + value below the pivot
+  if (shape === "needle") {
+    return (
+      <div className="relative flex flex-col items-center" style={{ width: size }}>
+        <NeedleGauge
+          value={value}
+          max={max}
+          size={size}
+          pct={pct}
+          stroke={color}
+          glowColor={color}
+          strokeWidth={sw}
+          gradient={isGradientFill ? gradient : undefined}
+        />
+        <div className="pointer-events-none mt-0.5 flex flex-col items-center leading-none">
+          {Icon && (
+            <Icon
+              size={Math.max(9, Math.round(size * 0.14))}
+              color={color}
+              style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+            />
+          )}
+          <span
+            className="font-mono font-bold leading-none"
+            style={{ color, textShadow: `0 0 6px ${color}66`, fontSize: Math.max(12, Math.round(size * 0.22)) }}
+          >
+            {value.toFixed(0)}
+            <span className="text-[8px] opacity-80">{unit}</span>
+          </span>
+          <span className="font-mono text-[8px] font-semibold uppercase tracking-wider text-foreground/70">
+            {label}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex flex-col items-center" style={{ width: size, height: size }}>
       <GaugeShape
@@ -386,4 +423,165 @@ function renderArcSegments(
     result.push(render(startFrac, endFrac));
   }
   return result;
+}
+
+interface NeedleProps {
+  value: number;
+  max: number;
+  size: number;
+  pct: number;
+  stroke: string;
+  glowColor: string;
+  strokeWidth: number;
+  gradient?: GradientPreset;
+}
+
+/**
+ * Speedometer-style needle gauge. A 240° background arc with a colored fill
+ * arc up to the current value, and a needle pointer that rotates to point at
+ * the current value. The needle's pivot is at the bottom-center of the arc;
+ * the numeric value is rendered below the pivot by the parent (CircularGauge).
+ */
+function NeedleGauge({ value, max, size, pct, stroke, glowColor, strokeWidth, gradient }: NeedleProps) {
+  const cx = size / 2;
+  // Arc spans 240°, centered at the bottom (gap at the bottom-center).
+  const startAngle = 150; // degrees, measured clockwise from positive x-axis
+  const endAngle = 30 + 360; // wrap past 360 so we sweep 240°
+  const sweep = endAngle - startAngle; // 240
+  const r = (size - strokeWidth * 2) / 2;
+  const cy = size / 2;
+  const sw = Math.max(2, strokeWidth);
+
+  // Needle angle in degrees (clockwise from positive x-axis)
+  const needleAngle = startAngle + pct * sweep;
+
+  // Convert polar (angle in degrees, radius r) to cartesian
+  const polar = (angleDeg: number, radius: number) => {
+    const a = (angleDeg * Math.PI) / 180;
+    return { x: cx + radius * Math.cos(a), y: cy + radius * Math.sin(a) };
+  };
+
+  const arcPath = (fromDeg: number, toDeg: number) => {
+    const from = polar(fromDeg, r);
+    const to = polar(toDeg, r);
+    const large = toDeg - fromDeg > 180 ? 1 : 0;
+    return `M ${from.x.toFixed(2)} ${from.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${to.x.toFixed(2)} ${to.y.toFixed(2)}`;
+  };
+
+  const bgStart = polar(startAngle, r);
+  const bgEnd = polar(endAngle, r);
+
+  // Tick marks (small) every 10% — 11 ticks total
+  const tickMarks: React.ReactNode[] = [];
+  for (let i = 0; i <= 10; i++) {
+    const tickFrac = i / 10;
+    const tickAngle = startAngle + tickFrac * sweep;
+    const outer = polar(tickAngle, r - sw / 2 - 1);
+    const inner = polar(tickAngle, r - sw / 2 - 4);
+    const isMajor = i % 5 === 0;
+    tickMarks.push(
+      <line
+        key={i}
+        x1={outer.x}
+        y1={outer.y}
+        x2={inner.x}
+        y2={inner.y}
+        stroke={isMajor ? "oklch(0.7 0.04 260 / 0.7)" : "oklch(0.5 0.04 260 / 0.5)"}
+        strokeWidth={isMajor ? 1.2 : 0.6}
+        strokeLinecap="round"
+      />,
+    );
+  }
+
+  // Needle tip + tail
+  const needleLen = r - sw - 2;
+  const needleTip = polar(needleAngle, needleLen);
+  const needleTail = polar(needleAngle + 180, Math.max(3, r * 0.18));
+
+  return (
+    <svg width={size} height={size * 0.82} viewBox={`0 0 ${size} ${size * 0.82}`} className="overflow-visible">
+      {/* Background arc */}
+      <path
+        d={arcPath(startAngle, endAngle)}
+        stroke="oklch(0.3 0.04 260 / 0.6)"
+        strokeWidth={sw}
+        strokeLinecap="round"
+        fill="none"
+      />
+      {/* Fill arc (colored portion up to current value) */}
+      {gradient ? (
+        renderArcSegments(GRADIENT_SEGMENTS, pct, (startFrac, endFrac) => {
+          const midFrac = (startFrac + endFrac) / 2;
+          const segColor = gradientColorAt(gradient, midFrac);
+          const fromA = startAngle + startFrac * sweep;
+          const toA = startAngle + endFrac * sweep;
+          return (
+            <path
+              key={startFrac}
+              d={arcPath(fromA, toA)}
+              stroke={segColor}
+              strokeWidth={sw}
+              strokeLinecap="butt"
+              fill="none"
+              style={{ transition: "opacity 300ms ease" }}
+            />
+          );
+        })
+      ) : (
+        <path
+          d={arcPath(startAngle, startAngle + pct * sweep)}
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinecap="round"
+          fill="none"
+          style={{
+            filter: `drop-shadow(0 0 6px ${glowColor})`,
+            transition: "stroke-dashoffset 600ms ease, stroke 300ms ease",
+          }}
+        />
+      )}
+      {/* Tick marks */}
+      {tickMarks}
+      {/* Needle */}
+      <g
+        style={{
+          transformOrigin: `${cx}px ${cy}px`,
+          transform: `rotate(${needleAngle - 90}deg)`,
+          transition: "transform 600ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+        }}
+      >
+        {/* Needle body */}
+        <line
+          x1={cx}
+          y1={cy}
+          x2={cx + needleLen}
+          y2={cy}
+          stroke={stroke}
+          strokeWidth={Math.max(1.5, sw * 0.35)}
+          strokeLinecap="round"
+          style={{ filter: `drop-shadow(0 0 4px ${glowColor})` }}
+        />
+        {/* Needle tail (small counterweight) */}
+        <line
+          x1={cx}
+          y1={cy}
+          x2={cx - Math.max(3, r * 0.18)}
+          y2={cy}
+          stroke="oklch(0.5 0.04 260)"
+          strokeWidth={Math.max(1.5, sw * 0.3)}
+          strokeLinecap="round"
+        />
+      </g>
+      {/* Pivot circle */}
+      <circle
+        cx={cx}
+        cy={cy}
+        r={Math.max(2.5, sw * 0.6)}
+        fill={stroke}
+        stroke="oklch(0.15 0.02 260)"
+        strokeWidth={1}
+        style={{ filter: `drop-shadow(0 0 4px ${glowColor})` }}
+      />
+    </svg>
+  );
 }

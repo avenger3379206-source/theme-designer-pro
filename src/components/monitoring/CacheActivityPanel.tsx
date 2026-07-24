@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Database, Zap, Cloud, Activity, CheckCircle2, XCircle, CircleDashed } from "lucide-react";
+import { Database, Zap, Cloud, Activity, CheckCircle2, XCircle, CircleDashed, Download } from "lucide-react";
 import {
   aggregate,
   fetchCacheTail,
@@ -16,6 +16,14 @@ import { recordBytes } from "@/lib/daily-report";
 const POLL_MS = 3000;
 const WINDOW_MS = 15_000;
 const MAX_KEEP = 800;
+
+// Human-readable bandwidth: KB while small, MB once past 1MB, GB past 1GB.
+function formatBytes(bytes: number): string {
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;
+  if (mb >= 1) return `${mb.toFixed(1)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
+}
 // Broadcast per-client cache state so ClientCard can subscribe.
 export const CACHE_EVT = "exir:cache-clients";
 export const CACHE_LINES_EVT = "exir:cache-lines";
@@ -24,6 +32,11 @@ export function CacheActivityPanel() {
   const [cfg, setCfg] = useState<CacheSshConfig>(() => loadCacheSsh());
   const [lines, setLines] = useState<CacheLine[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Running session totals in bytes — separate from `lines` (which is capped
+  // at MAX_KEEP and only reflects recent history). These accumulate forever
+  // for the life of the component so the MB counters below don't shrink as
+  // old log lines get evicted from the display buffer.
+  const [byteTotals, setByteTotals] = useState({ hit: 0, miss: 0, other: 0 });
 
   useEffect(() => {
     const h = () => setCfg(loadCacheSsh());
@@ -39,6 +52,7 @@ export function CacheActivityPanel() {
     if (!cfg.enabled || !cfg.host || !cfg.user) return;
     let alive = true;
     const seen = new Set<string>();
+    setByteTotals({ hit: 0, miss: 0, other: 0 });
     async function tick() {
       if (isComposing()) return;
       const r = await fetchCacheTail(cfg, 300);
@@ -54,9 +68,20 @@ export function CacheActivityPanel() {
       }
       if (parsed.length === 0) return;
       // Feed daily-report per-machine + per-service byte totals.
+      let dHit = 0, dMiss = 0, dOther = 0;
       for (const p of parsed) {
         const machine = machineFromIp(p.ip);
         if (machine && p.bytes > 0) recordBytes(machine, p.service, p.bytes, "down");
+        if (p.status === "HIT") dHit += p.bytes;
+        else if (p.status === "MISS") dMiss += p.bytes;
+        else dOther += p.bytes;
+      }
+      if (dHit || dMiss || dOther) {
+        setByteTotals((prev) => ({
+          hit: prev.hit + dHit,
+          miss: prev.miss + dMiss,
+          other: prev.other + dOther,
+        }));
       }
       setLines((prev) => {
         const next = [...prev, ...parsed].slice(-MAX_KEEP);
@@ -93,6 +118,15 @@ export function CacheActivityPanel() {
     const speed = arr.reduce((a, b) => a + b.speedKBs, 0);
     return { active, internet, idle: Math.max(0, idle), hitRatio, speed };
   }, [perClient]);
+
+  // Bandwidth summary in bytes → MB/GB. "served" is everything that reached
+  // a client (HIT + MISS + OTHER); "hit" bytes never left the LAN (saved
+  // bandwidth), "miss" bytes were actually pulled from the internet.
+  const bw = useMemo(() => {
+    const served = byteTotals.hit + byteTotals.miss + byteTotals.other;
+    const savedPct = served ? Math.round((byteTotals.hit / served) * 100) : 0;
+    return { served, savedPct };
+  }, [byteTotals]);
 
   // Split the log lines into three buckets — newest first — one per status
   // column (HIT / MISS / OTHER). Each status is filtered from the *full*
@@ -145,6 +179,27 @@ export function CacheActivityPanel() {
         <Metric label="Idle"      value={String(summary.idle)}      icon={<Database size={12} />} color="oklch(0.6 0.02 250)" />
         <Metric label="Hit Ratio" value={`${summary.hitRatio}%`}    icon={<Zap size={12} />}      color="var(--neon-green)" />
         <Metric label="Speed"     value={`${summary.speed} KB/s`}   icon={<Activity size={12} />} color="var(--neon-magenta)" />
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        <Metric
+          label="Downloaded"
+          value={formatBytes(bw.served)}
+          icon={<Download size={12} />}
+          color="var(--neon-cyan)"
+        />
+        <Metric
+          label={`Hit · saved ${bw.savedPct}%`}
+          value={formatBytes(byteTotals.hit)}
+          icon={<CheckCircle2 size={12} />}
+          color="var(--neon-green)"
+        />
+        <Metric
+          label="Miss · from internet"
+          value={formatBytes(byteTotals.miss)}
+          icon={<Cloud size={12} />}
+          color="var(--neon-red)"
+        />
       </div>
 
       <div className="mt-3 rounded-md border border-border/60 bg-black/40 p-1.5">

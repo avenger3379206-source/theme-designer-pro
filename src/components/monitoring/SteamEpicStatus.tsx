@@ -88,10 +88,12 @@ async function fetchJson(url: string): Promise<unknown | null> {
 
 async function loadBundle(): Promise<Bundle> {
   // Steam's status endpoint sends no CORS headers, so a direct browser fetch
-  // always fails (→ gray "unknown"). The local ping-agent proxies it for us.
+  // always fails (→ gray "unknown"). The local ping-agent proxies both Steam
+  // and Epic for us; if the agent itself is unreachable (not running), we
+  // still try a direct browser fetch as a fallback.
   const [s, e] = await Promise.all([
     fetchJson("http://localhost:8765/steam").then((r) => r ?? fetchJson(STEAM_URL)),
-    fetchJson(EPIC_URL),
+    fetchJson("http://localhost:8765/epic").then((r) => r ?? fetchJson(EPIC_URL)),
   ]);
   return {
     steam: s ? normSteam(s) : [{ name: "Steam", level: "unknown" }],
@@ -168,7 +170,7 @@ function Column({
   );
 }
 
-export function SteamEpicStatus() {
+function useLauncherBundle(): Bundle | null {
   const [b, setB] = useState<Bundle | null>(null);
   useEffect(() => {
     let alive = true;
@@ -184,10 +186,13 @@ export function SteamEpicStatus() {
       clearInterval(id);
     };
   }, []);
+  return b;
+}
 
-  const updated = b ? new Date(b.updated).toLocaleTimeString() : "…";
+function SteamEpicStatusContent({ bundle }: { bundle: Bundle | null }) {
+  const updated = bundle ? new Date(bundle.updated).toLocaleTimeString() : "…";
   return (
-    <div className="rounded-xl p-2.5 glass-panel">
+    <>
       <div className="mb-1.5 flex items-center justify-between">
         <h3 className="font-mono text-[11px] uppercase tracking-[0.3em] text-muted-foreground">
           ▸ launcher status
@@ -199,15 +204,29 @@ export function SteamEpicStatus() {
           title="Steam (CS2 · Dota)"
           icon={<Gamepad2 size={12} />}
           accent="var(--neon-cyan)"
-          items={b?.steam ?? []}
+          items={bundle?.steam ?? []}
         />
         <Column
           title="Epic Games"
           icon={<Zap size={12} />}
           accent="var(--neon-magenta)"
-          items={b?.epic ?? []}
+          items={bundle?.epic ?? []}
         />
       </div>
+    </>
+  );
+}
+
+export function SteamEpicStatus() {
+  const b = useLauncherBundle();
+  return (
+    <div className="rounded-xl p-2.5 glass-panel">
+      <SteamEpicStatusContent bundle={b} />
     </div>
   );
+}
+
+export function SteamEpicStatusBare() {
+  const b = useLauncherBundle();
+  return <SteamEpicStatusContent bundle={b} />;
 }

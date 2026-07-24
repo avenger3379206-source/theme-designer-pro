@@ -19,7 +19,6 @@ import { ClientLayoutView } from "@/components/monitoring/ClientLayoutView";
 import { PingPanel } from "@/components/monitoring/PingPanel";
 import { ClientDetailModal } from "@/components/monitoring/ClientDetailModal";
 import { VncQuickLaunch } from "@/components/monitoring/VncQuickLaunch";
-import { SteamEpicStatus } from "@/components/monitoring/SteamEpicStatus";
 import { ActiveConsoleLog } from "@/components/monitoring/ActiveConsoleLog";
 import { QosLaunch } from "@/components/monitoring/QosLaunch";
 import { GamePlatformsPanel } from "@/components/monitoring/GamePlatformsPanel";
@@ -46,7 +45,6 @@ const SHOW_CLIENTS_GRID = true;
 const SHOW_CACHE_ACTIVITY = true;
 const SHOW_PING = true;
 const SHOW_EPIC_CDN_DISCOVERY = true;
-const SHOW_STEAM_EPIC_STATUS = true;
 const SHOW_ACTIVE_CONSOLE_LOG = true;
 const SHOW_GAME_PLATFORMS = true;
 const SHOW_RESERVATION_BOARD = true;
@@ -487,11 +485,9 @@ function Dashboard() {
           </section>
         )}
 
-        {/* Launcher status + Active Console Log + game platforms — side by
-            side so launcher status no longer eats a whole separate row. */}
-        {(SHOW_STEAM_EPIC_STATUS || SHOW_ACTIVE_CONSOLE_LOG || SHOW_GAME_PLATFORMS) && (
-          <section className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[300px_360px_1fr]">
-            {SHOW_STEAM_EPIC_STATUS && <SteamEpicStatus />}
+        {/* Active Console Log (DNS + integrated launcher status) + game platforms */}
+        {(SHOW_ACTIVE_CONSOLE_LOG || SHOW_GAME_PLATFORMS) && (
+          <section className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(480px,1.2fr)_1fr]">
             {SHOW_ACTIVE_CONSOLE_LOG && <ActiveConsoleLog />}
             {SHOW_GAME_PLATFORMS && <GamePlatformsPanel />}
           </section>

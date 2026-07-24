@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ServerStatus } from "@/lib/monitoring-types";
 import { loadSettings, type GaugeSettings } from "@/lib/gauge-settings";
+import { getAppUptimeMs, formatUptime } from "@/lib/app-uptime";
 import { MetricBar } from "./MetricBar";
 
 function useGaugeSettings(): GaugeSettings {
@@ -17,8 +18,21 @@ function useGaugeSettings(): GaugeSettings {
   return s;
 }
 
+// App/session uptime — resets whenever the dashboard itself (re)starts,
+// instead of showing the physical server's OS uptime which never resets
+// just because the project was closed/reopened/restarted.
+function useAppUptime(): string {
+  const [label, setLabel] = useState(() => formatUptime(getAppUptimeMs()));
+  useEffect(() => {
+    const id = setInterval(() => setLabel(formatUptime(getAppUptimeMs())), 1_000);
+    return () => clearInterval(id);
+  }, []);
+  return label;
+}
+
 export function ServerCard({ server }: { server: ServerStatus }) {
   const settings = useGaugeSettings();
+  const appUptime = useAppUptime();
   const ramPct = (server.ramUsed / server.ramTotal) * 100;
 
   return (
@@ -39,7 +53,7 @@ export function ServerCard({ server }: { server: ServerStatus }) {
             {server.name}
           </h2>
           <div className="mt-3 flex flex-wrap gap-2 font-mono text-[11px]">
-            <Pill label="UPTIME" value={server.uptime} color="cyan" />
+            <Pill label="UPTIME" value={appUptime} color="cyan" />
             <Pill label="RAM" value={`${server.ramUsed.toFixed(1)}/${server.ramTotal}GB`} color="magenta" />
             <Pill label="LOAD" value={`${ramPct.toFixed(0)}%`} color={ramPct > 80 ? "red" : "green"} />
           </div>

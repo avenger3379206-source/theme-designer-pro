@@ -597,6 +597,35 @@ function ShapePreview({ shape, active, strokeWidth = 3 }: { shape: GaugeShape; a
       </svg>
     );
   }
+  if (shape === "needle") {
+    // Mini speedometer preview
+    const ns = s;
+    const ncx = ns / 2;
+    const ncy = ns / 2 + 2;
+    const nr = 11;
+    const nStart = 150;
+    const nSweep = 240;
+    const polarN = (deg: number, radius: number) => {
+      const a = (deg * Math.PI) / 180;
+      return { x: ncx + radius * Math.cos(a), y: ncy + radius * Math.sin(a) };
+    };
+    const arcN = (from: number, to: number) => {
+      const f = polarN(from, nr);
+      const t = polarN(to, nr);
+      const large = to - from > 180 ? 1 : 0;
+      return `M ${f.x.toFixed(2)} ${f.y.toFixed(2)} A ${nr} ${nr} 0 ${large} 1 ${t.x.toFixed(2)} ${t.y.toFixed(2)}`;
+    };
+    const needleA = nStart + 0.65 * nSweep;
+    const tip = polarN(needleA, nr - 2);
+    return (
+      <svg width={ns} height={ns}>
+        <path d={arcN(nStart, nStart + nSweep)} stroke={bg} strokeWidth={1.5} strokeLinecap="round" fill="none" />
+        <path d={arcN(nStart, nStart + 0.65 * nSweep)} stroke={color} strokeWidth={1.5} strokeLinecap="round" fill="none" />
+        <line x1={ncx} y1={ncy} x2={tip.x} y2={tip.y} stroke={color} strokeWidth={1} strokeLinecap="round" />
+        <circle cx={ncx} cy={ncy} r={1.5} fill={color} />
+      </svg>
+    );
+  }
   if (shape === "semicircle") {
     return (
       <svg width={s} height={s}>

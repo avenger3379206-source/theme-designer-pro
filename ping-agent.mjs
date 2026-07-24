@@ -305,6 +305,26 @@ const server = createServer((req, res) => {
     return;
   }
 
+  // ── Epic Games status proxy ─────────────────────────────────────────
+  // Same idea as /steam above: fetch status.epicgames.com from Node so a
+  // flaky/CORS-less/blocked direct browser request doesn't leave the panel
+  // stuck on "unknown".
+  if (req.method === "GET" && req.url === "/epic") {
+    fetch("https://status.epicgames.com/api/v2/summary.json", {
+      headers: { "User-Agent": "Mozilla/5.0" },
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
+        res.end(JSON.stringify(json));
+      })
+      .catch((e) => {
+        res.writeHead(502, { ...CORS, "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: String(e?.message || e) }));
+      });
+    return;
+  }
+
   // ── VNC launcher ────────────────────────────────────────────────────
   // Spawns UltraVNC directly on the operator PC (no .bat download needed).
   if (req.method === "POST" && req.url === "/vnc") {
