@@ -23,18 +23,26 @@ import { ActiveConsoleLog } from "@/components/monitoring/ActiveConsoleLog";
 import { QosLaunch } from "@/components/monitoring/QosLaunch";
 import { GamePlatformsPanel } from "@/components/monitoring/GamePlatformsPanel";
 import { ReservationBoard } from "@/components/monitoring/ReservationBoard";
+import { ReservedSummaryModal } from "@/components/monitoring/ReservedSummaryModal";
 import { DailyReport } from "@/components/monitoring/DailyReport";
 import { CacheActivityPanel } from "@/components/monitoring/CacheActivityPanel";
 import { EpicCdnDiscovery } from "@/components/monitoring/EpicCdnDiscovery";
 import { ClientPingProbe } from "@/components/monitoring/ClientPingProbe";
+import { ClientPeripheralProbe } from "@/components/monitoring/ClientPeripheralProbe";
+import { ClientDiskHealthProbe } from "@/components/monitoring/ClientDiskHealthProbe";
 import { HotspotStatus } from "@/components/monitoring/HotspotStatus";
 import { InfraStatusPanel } from "@/components/monitoring/InfraStatusPanel";
-import { loadReservations, remainingMinutes, defaultSeats } from "@/lib/reservations";
+import { currentReservation, nextReservation, reservedSeatIds, defaultSeats } from "@/lib/reservations";
 import { loadLogo } from "@/lib/branding";
 import { loadSettings, type GaugeSettings } from "@/lib/gauge-settings";
 import { recordTick as recordProcessTick } from "@/lib/process-history";
+import { recordAnalyticsTick } from "@/lib/analytics";
+import { AnalyticsPanel } from "@/components/monitoring/AnalyticsPanel";
+import { CctvPanel } from "@/components/monitoring/CctvPanel";
 import { isComposing } from "@/lib/compose-lock";
 import { recordPing, recordSteamDown, recordUsage } from "@/lib/daily-report";
+import { useAlertEngine } from "@/hooks/use-alert-engine";
+import { AlertBell } from "@/components/monitoring/AlertBell";
 
 // --- نمایش/مخفی‌کردن بخش‌های صفحه ---
 // هر کدوم رو false کنی، اون بخش کلاً رندر نمی‌شه.
@@ -49,6 +57,8 @@ const SHOW_ACTIVE_CONSOLE_LOG = true;
 const SHOW_GAME_PLATFORMS = true;
 const SHOW_RESERVATION_BOARD = true;
 const SHOW_DAILY_REPORT = true;
+const SHOW_ANALYTICS = true;
+const SHOW_CCTV = true;
 // Phase 9: the "Server OK" pill was replaced up top by the market shop
 // icon. Kept behind this flag in case it needs to come back later — set
 // to `true` to show it again (it'll appear next to the market icon).
@@ -99,6 +109,15 @@ function Dashboard() {
   const [pings, setPings] = useState<PingTarget[]>(() => loadTargets());
   const [selected, setSelected] = useState<ClientStatus | null>(null);
   const closeDetail = useCallback(() => setSelected(null), []);
+  // Second-monitor view: open this page with `?monitor=2` appended to the
+  // URL (e.g. https://.../?monitor=2) in the browser window/tab you place
+  // on the second screen. When present, a handful of sections (infra,
+  // server card, qos, clients grid, ping) are hidden and everything else
+  // renders as usual.
+  const isSecondMonitor = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("monitor") === "2";
+  }, []);
   // Uptime counts up from the moment the dashboard was opened — persisted so
   // it survives leaving/returning from the shop, or a real page refresh,
   // instead of snapping back to 00:00:00 every time.
@@ -170,6 +189,7 @@ function Dashboard() {
           if (cancelled) return;
           setClients(c);
           recordProcessTick(c);
+          recordAnalyticsTick(c);
           c.forEach((client) => {
             if (client.online !== false) {
               recordUsage(
@@ -188,6 +208,7 @@ function Dashboard() {
         setServer(generateMockServer());
         setClients(mockClients);
         recordProcessTick(mockClients);
+        recordAnalyticsTick(mockClients);
         mockClients.forEach((client) => {
           if (client.online !== false) {
             recordUsage(
@@ -288,15 +309,30 @@ function Dashboard() {
 
   const onlineCount = useMemo(() => clients.filter((c) => c.online !== false).length, [clients]);
 
-  // Live reservation counter for the header pill.
+  useAlertEngine(clients, pings);
+
+  // Live reservation counter for the header pill. Counts any seat that has
+  // either an in-progress reservation *or* one queued for later — booking
+  // a seat for 6pm should show up here right away, not just once it starts.
   const [reservedCount, setReservedCount] = useState(0);
+  const [activeReservedCount, setActiveReservedCount] = useState(0);
+  const [upcomingReservedCount, setUpcomingReservedCount] = useState(0);
+  const [reservedSeats, setReservedSeats] = useState<Set<string>>(() => new Set());
+  const [showReservedSummary, setShowReservedSummary] = useState(false);
   const totalSeats = useMemo(() => defaultSeats().length, []);
+  const seatIds = useMemo(() => defaultSeats().map((s) => s.id), []);
   useEffect(() => {
     const recount = () => {
-      const map = loadReservations();
-      let n = 0;
-      for (const r of Object.values(map)) if (remainingMinutes(r) > 0) n++;
-      setReservedCount(n);
+      let active = 0;
+      let upcoming = 0;
+      for (const seatId of seatIds) {
+        if (currentReservation(seatId)) active++;
+        else if (nextReservation(seatId)) upcoming++;
+      }
+      setActiveReservedCount(active);
+      setUpcomingReservedCount(upcoming);
+      setReservedCount(active + upcoming);
+      setReservedSeats(reservedSeatIds());
     };
     recount();
     window.addEventListener("exir:reservations", recount);
@@ -340,9 +376,9 @@ function Dashboard() {
       <div className="mx-auto max-w-[1600px] px-6 py-6">
         {/* Header */}
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div
-              className="relative flex size-14 items-center justify-center overflow-hidden rounded-xl neon-border-cyan"
+              className="relative flex size-10 items-center justify-center overflow-hidden rounded-xl neon-border-cyan"
               style={{
                 background:
                   "linear-gradient(135deg, oklch(0.22 0.06 220 / 0.6), oklch(0.18 0.05 280 / 0.6))",
@@ -351,19 +387,19 @@ function Dashboard() {
               {logoUrl ? (
                 <img src={logoUrl} alt="logo" className="max-h-full max-w-full object-contain" />
               ) : (
-                <span className="font-mono text-3xl font-black text-glow-cyan">E</span>
+                <span className="font-mono text-xl font-black text-glow-cyan">E</span>
               )}
               <span
-                className="absolute -bottom-1 -right-1 size-3 rounded-full pulse-dot"
+                className="absolute -bottom-1 -right-1 size-2.5 rounded-full pulse-dot"
                 style={{ background: "var(--neon-green)", boxShadow: "0 0 8px var(--neon-green)" }}
               />
             </div>
             <div>
-              <h1 className="font-mono text-3xl font-black uppercase tracking-[0.2em] leading-none">
+              <h1 className="font-mono text-xl font-black uppercase tracking-[0.15em] leading-none">
                 <span className="text-glow-cyan">Exir</span>{" "}
                 <span className="text-glow-magenta">Gamenet</span>
               </h1>
-              <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.4em] text-muted-foreground">
+              <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.3em] text-muted-foreground">
                 ▸ live monitoring console ◂
               </p>
             </div>
@@ -380,10 +416,13 @@ function Dashboard() {
             />
             <StatusPill label="Stations" value={`${onlineCount}/12`} color="cyan" />
             <HotspotStatus />
+            <AlertBell />
             <StatusPill
               label="Reserved"
               value={`${reservedCount}/${totalSeats}`}
               color={reservedCount > 0 ? "magenta" : "cyan"}
+              title={`${activeReservedCount} فعال · ${upcomingReservedCount} در صف — کلیک برای مشاهده جزئیات`}
+              onClick={() => setShowReservedSummary(true)}
             />
             {SHOW_SERVER_STATUS_PILL && <StatusPill label="Server" value="OK" color="green" />}
             <Link
@@ -404,56 +443,63 @@ function Dashboard() {
           </div>
         </header>
 
-        {/* Infrastructure status (modems / mikrotik / linux / cisco) */}
-        <section className="mb-3">
-          <InfraStatusPanel />
-        </section>
+        {/* Infrastructure status (modems / mikrotik / linux / cisco) — hidden on second monitor */}
+        {!isSecondMonitor && (
+          <section className="mb-3">
+            <InfraStatusPanel />
+          </section>
+        )}
 
-        {/* Server */}
-        <section className="mb-5">
-          {SHOW_SERVER_CARD && server && <ServerCard server={{ ...server, uptime }} />}
-        </section>
+        {/* Server — hidden on second monitor */}
+        {!isSecondMonitor && (
+          <section className="mb-5">
+            {SHOW_SERVER_CARD && server && <ServerCard server={{ ...server, uptime }} />}
+          </section>
+        )}
 
-        {/* Clients grid */}
-        <section className="mb-5">
-          {SHOW_VNC_QUICK_LAUNCH && (
-            <VncQuickLaunch
-              total={12}
-              onlineMachines={
-                new Set(clients.filter((c) => c.online !== false).map((c) => c.machine))
-              }
-            />
-          )}
-          {SHOW_QOS_LAUNCH && (
-            <QosLaunch
-              machines={Array.from(
-                { length: 12 },
-                (_, i) => `VIP${String(i + 1).padStart(2, "0")}`,
-              )}
-            />
-          )}
-          {SHOW_CLIENTS_GRID && (
-            <>
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                  client stations · 12
-                </h3>
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  click a card for details
-                </span>
-              </div>
-              <div data-clients-grid="1">
-                <ClientLayoutView
-                  clients={clients}
-                  onSelect={setSelected}
-                  layout={gaugeSettings.clientLayout}
-                />
-              </div>
-            </>
-          )}
-        </section>
+        {/* Clients grid (qos launch + client stations grid) — hidden on second monitor */}
+        {!isSecondMonitor && (
+          <section className="mb-5">
+            {SHOW_VNC_QUICK_LAUNCH && (
+              <VncQuickLaunch
+                total={12}
+                onlineMachines={
+                  new Set(clients.filter((c) => c.online !== false).map((c) => c.machine))
+                }
+              />
+            )}
+            {SHOW_QOS_LAUNCH && (
+              <QosLaunch
+                machines={Array.from(
+                  { length: 12 },
+                  (_, i) => `VIP${String(i + 1).padStart(2, "0")}`,
+                )}
+              />
+            )}
+            {SHOW_CLIENTS_GRID && (
+              <>
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                    client stations · 12
+                  </h3>
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    click a card for details
+                  </span>
+                </div>
+                <div data-clients-grid="1">
+                  <ClientLayoutView
+                    clients={clients}
+                    onSelect={setSelected}
+                    layout={gaugeSettings.clientLayout}
+                    reservedSeats={reservedSeats}
+                  />
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
-        {/* Ping */}
+        {/* Ping — hidden on second monitor */}
         {SHOW_PING && (
           <section>
             <PingPanel
@@ -507,6 +553,20 @@ function Dashboard() {
           </section>
         )}
 
+        {/* Analytics — peak hours, daily trend, popular games */}
+        {SHOW_ANALYTICS && (
+          <section className="mt-3">
+            <AnalyticsPanel />
+          </section>
+        )}
+
+        {/* CCTV — live camera previews + quick launch + motion alerts */}
+        {SHOW_CCTV && (
+          <section className="mt-3">
+            <CctvPanel />
+          </section>
+        )}
+
         <footer className="mt-6 text-center font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground/60">
           exir gamenet · monitoring v0.1 · auto-refresh 3s ·{" "}
           {mode === "live" ? `live: ${folderName}` : "mock data"}
@@ -514,7 +574,12 @@ function Dashboard() {
       </div>
 
       <ClientPingProbe clients={clients} />
+      <ClientPeripheralProbe clients={clients} />
+      <ClientDiskHealthProbe clients={clients} />
       <ClientDetailModal client={selected} onClose={closeDetail} />
+      {showReservedSummary && (
+        <ReservedSummaryModal onClose={() => setShowReservedSummary(false)} />
+      )}
     </div>
   );
 }
@@ -555,7 +620,7 @@ function SourceControl({
             boxShadow: `0 0 8px ${error ? "var(--neon-red)" : "var(--neon-green)"}`,
           }}
         />
-        <span className="group-hover:hidden">live · {folderName}</span>
+        <span className="group-hover:hidden">live·{folderName}</span>
         <span className="hidden group-hover:inline">disconnect</span>
       </button>
     );
@@ -574,10 +639,14 @@ function StatusPill({
   label,
   value,
   color,
+  title,
+  onClick,
 }: {
   label: string;
   value: string;
   color: "cyan" | "green" | "magenta" | "muted";
+  title?: string;
+  onClick?: () => void;
 }) {
   const c =
     color === "cyan"
@@ -587,12 +656,20 @@ function StatusPill({
         : color === "magenta"
           ? "var(--neon-magenta)"
           : "oklch(0.7 0.02 250)";
+  const Tag = onClick ? "button" : "div";
   return (
-    <div className="rounded-lg border border-border/60 bg-surface/60 px-3 py-2 font-mono text-[11px] backdrop-blur-sm">
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      title={title}
+      className={`rounded-lg border border-border/60 bg-surface/90 px-3 py-2 font-mono text-[11px] text-left ${
+        onClick ? "cursor-pointer transition hover:border-cyan-500/60 hover:bg-surface" : ""
+      }`}
+    >
       <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="font-bold leading-none" style={{ color: c, textShadow: `0 0 8px ${c}` }}>
         {value}
       </div>
-    </div>
+    </Tag>
   );
 }

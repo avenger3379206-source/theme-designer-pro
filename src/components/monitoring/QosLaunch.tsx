@@ -172,7 +172,7 @@ export function QosLaunch({ machines }: Props) {
           const m = openId;
           const st: QosState = states[m] ?? { enabled: false, tier: "off" };
           return (
-            <div className="mt-2 rounded-lg border border-border bg-surface/80 p-2 backdrop-blur-md">
+            <div className="mt-2 rounded-lg border border-border bg-surface/95 p-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-mono text-[11px] uppercase tracking-widest text-glow-cyan">{m}</span>
                 <label className="flex items-center gap-1.5 rounded border border-border/50 px-2 py-1 font-mono text-[10px] uppercase text-muted-foreground">

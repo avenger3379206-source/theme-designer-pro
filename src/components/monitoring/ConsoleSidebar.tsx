@@ -38,7 +38,7 @@ export function ConsoleSidebar() {
   return (
     <nav
       data-console-sidebar="1"
-      className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col gap-1 border-e border-border/50 bg-surface/70 px-3 py-4 backdrop-blur-md lg:flex"
+      className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col gap-1 border-e border-border/50 bg-surface/95 px-3 py-4 lg:flex"
     >
       {NAV_ITEMS.map(({ id, icon: Icon, label, fa }) => {
         const isActive = active === id;

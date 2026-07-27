@@ -200,7 +200,6 @@ export function ActiveConsoleLog() {
           <Terminal size={12} /> active console log
         </h3>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="font-mono text-[9px] text-foreground/40">[{cycleTimeStr}]</span>
           <button
             onClick={() => setAutoRefresh((v) => !v)}
             title="فعال/غیرفعال کردن رفرش خودکار"
@@ -220,14 +219,13 @@ export function ActiveConsoleLog() {
         </div>
       </div>
 
-      {/* DNS list — ranked, one line per host. dns1 and dns2 latency are
-          shown side by side as separate, individually-colored readings
-          (not just the merged "best"), so it's unambiguous which ping
-          number belongs to which DNS IP — all on a single line to keep
-          the panel's height compact. */}
+      {/* DNS list — ranked, one card per host. Each row shows dns1 and dns2
+          latency as separate, individually-colored readings (not just the
+          merged "best") plus its own border/stripe, so it's unambiguous
+          which ping number belongs to which host and which DNS IP. */}
       <div
         dir="ltr"
-        className="flex flex-col gap-0.5 overflow-hidden rounded-md border border-border/60 bg-black/50 p-1.5"
+        className="flex flex-col gap-1 overflow-hidden rounded-md border border-border/60 bg-black/50 p-1.5"
       >
         {entries.length === 0 ? (
           <div className="flex h-16 items-center justify-center px-2 text-center font-mono text-[10px] text-muted-foreground">
@@ -246,42 +244,49 @@ export function ActiveConsoleLog() {
             return (
               <div
                 key={e.hostId}
-                className={`flex items-center gap-2 truncate rounded border border-border/40 px-2 py-1 font-mono text-[10px] leading-tight ${
+                className={`flex items-center gap-2 rounded-md border border-border/40 px-2 py-1.5 font-mono text-[10px] leading-tight ${
                   idx % 2 === 1 ? "bg-white/[0.03]" : ""
                 }`}
                 title={`${e.name} — ${e.dns1}${e.dns2 ? ` / ${e.dns2}` : ""}`}
               >
                 <span
-                  className="h-2.5 w-1 shrink-0 rounded-full"
+                  className="h-6 w-1 shrink-0 rounded-full"
                   style={{ background: overallColor, boxShadow: `0 0 6px ${overallColor}` }}
                 />
-                <span className="w-4 shrink-0 text-[9px] text-foreground/40">#{rank}</span>
-                <span
-                  className="shrink-0 truncate max-w-[84px] font-semibold"
-                  style={{ color: "oklch(0.82 0.18 60)" }}
-                >
-                  {e.name}
-                </span>
-                <span className="shrink-0 truncate text-foreground/40">
-                  dns1{" "}
-                  <span className="font-semibold" style={{ color: dns1Color }}>
-                    {e.dns1 ? (e.ms1 >= 0 ? `${e.ms1}ms` : "timeout") : "—"}
-                  </span>
-                </span>
-                {e.dns2 && (
-                  <span className="shrink-0 truncate text-foreground/40">
-                    dns2{" "}
-                    <span className="font-semibold" style={{ color: dns2Color }}>
-                      {e.ms2 >= 0 ? `${e.ms2}ms` : "timeout"}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="w-4 shrink-0 text-[9px] text-foreground/40">#{rank}</span>
+                    <span
+                      className="truncate font-semibold"
+                      style={{ color: "oklch(0.82 0.18 60)" }}
+                    >
+                      {e.name}
                     </span>
-                  </span>
-                )}
-                <span
-                  className="ml-auto shrink-0 text-[9px] font-bold lowercase tracking-wider"
-                  style={{ color: overallColor }}
-                >
-                  {qualityLabel(e.quality)}
-                </span>
+                    <span
+                      className="ml-auto shrink-0 text-[9px] font-bold lowercase tracking-wider"
+                      style={{ color: overallColor }}
+                    >
+                      {qualityLabel(e.quality)}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-3 truncate text-[9px] text-foreground/55">
+                    <span className="shrink-0 truncate">
+                      <span className="text-foreground/40">dns1</span>{" "}
+                      <span className="font-semibold" style={{ color: dns1Color }}>
+                        {e.dns1 ? (e.ms1 >= 0 ? `${e.ms1}ms` : "timeout") : "—"}
+                      </span>
+                    </span>
+                    {e.dns2 && (
+                      <span className="shrink-0 truncate">
+                        <span className="text-foreground/40">dns2</span>{" "}
+                        <span className="font-semibold" style={{ color: dns2Color }}>
+                          {e.ms2 >= 0 ? `${e.ms2}ms` : "timeout"}
+                        </span>
+                      </span>
+                    )}
+                    <span className="ml-auto shrink-0 text-foreground/35">[{cycleTimeStr}]</span>
+                  </div>
+                </div>
               </div>
             );
           })

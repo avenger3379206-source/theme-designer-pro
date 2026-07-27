@@ -11,6 +11,7 @@ import { CACHE_EVT } from "./CacheActivityPanel";
 import { SendMessageModal } from "./SendMessageModal";
 import { NetworkPanel } from "./NetworkPanel";
 import { ProcessHistoryPanel } from "./ProcessHistoryPanel";
+import { PeripheralHealthPanel } from "./PeripheralHealthPanel";
 import { isComposing } from "@/lib/compose-lock";
 
 interface Props {
@@ -158,6 +159,7 @@ export const ClientDetailModal = memo(function ClientDetailModal({ client, onClo
             </div>
             <LanCacheBox cache={cache} ip={ipFromMachine(client.machine)} />
             <NetworkPanel machine={client.machine} />
+            <PeripheralHealthPanel machine={client.machine} />
             <GoodSyncPanel machine={client.machine} />
             <PowerControls machine={client.machine} />
           </>

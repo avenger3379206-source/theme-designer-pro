@@ -1,6 +1,8 @@
 @font-face {
   font-family: "Vazirmatn";
-  src: url("/fonts/Vazirmatn[wght].woff2") format("woff2");
+  src:
+    url("/fonts/Vazirmatn[wght].woff2") format("woff2"),
+    url("/fonts/Vazirmatn[wght].ttf") format("truetype");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -50,8 +52,18 @@
   --color-surface: var(--surface);
   --color-surface-elevated: var(--surface-elevated);
 
-  --font-display: "Rajdhani", "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Vazirmatn is appended as a fallback (not swapped in as primary) on the
+     English-facing stacks too: JetBrains Mono / Rajdhani / Inter have no
+     Persian glyphs, so without this, any Persian text nested inside a
+     .font-mono / .font-en element (very common — labels like "نوع دستگاه"
+     inside an otherwise-mono-styled form) silently falls back to whatever
+     generic font the OS happens to have, skipping Vazirmatn entirely even
+     when a .font-fa ancestor set it. Listing Vazirmatn last means Latin/
+     digits still render in the intended display font, while any Persian
+     character automatically picks up Vazirmatn's glyphs — everywhere,
+     with no per-component opt-in required. */
+  --font-display: "Rajdhani", "Inter", "Vazirmatn", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Vazirmatn", monospace;
 }
 
 :root {
@@ -89,6 +101,12 @@
   --neon-green: oklch(0.82 0.22 145);
   --neon-amber: oklch(0.82 0.18 75);
   --neon-red: oklch(0.68 0.26 25);
+
+  /* Global text-size control (src/lib/ui-scale.ts) — overridden inline on
+     <html> once the user picks something in Settings; these are just the
+     first-paint defaults. */
+  --ui-scale-base: 1;
+  --ui-scale-header: 1.1;
 }
 
 .dark {
@@ -101,15 +119,37 @@
     border-color: var(--color-border);
   }
   html {
-  font-family: "Vazirmatn", sans-serif;
+    font-family: "Vazirmatn", sans-serif;
   }
 
   body {
-  font-family: inherit;
+    font-family: inherit;
   }
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
   }
+
+  /* Global text-size control — see src/lib/ui-scale.ts for the settings
+     module and ThemeEditor.tsx for the sliders. `zoom` scales rendered
+     pixel sizes (text, icons, gaps, borders) together, so it reaches the
+     project's fixed-px Tailwind sizes too, not just rem-based ones. Nesting
+     header/footer's own zoom inside body's zoom makes the two multiply,
+     giving header/footer a size bump *on top of* the base scale.
+     NOTE: this targets <body>, not #root — this app runs via TanStack
+     Start SSR (see src/routes/__root.tsx), whose shell renders straight
+     into <body> with no #root wrapper in the live DOM. The #root div in
+     index.html/main.tsx is unused leftover from the plain-Vite-SPA
+     template and never mounts at runtime. */
+  body {
+    zoom: var(--ui-scale-base, 1);
+  }
+  header,
+  footer {
+    zoom: var(--ui-scale-header, 1.1);
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -134,12 +174,28 @@
     direction: ltr;
     unicode-bidi: isolate;
   }
+
+  /* App-wide auto direction for Persian text — this is the piece that
+     removes the need to hand-add dir="rtl"/lang="fa" to every component.
+     unicode-bidi: plaintext makes each element scan its OWN text for the
+     first strong-directional character (identical idea to HTML's
+     dir="auto") and lay itself out RTL when that's Persian/Arabic, LTR
+     when it's English or a number — automatically, everywhere, with zero
+     markup changes. It only touches text/inline bidi + start/end text
+     alignment; it does NOT touch the `direction` property itself, so
+     flexbox/grid item ordering (icon-then-label rows, absolute-positioned
+     corner buttons, etc.) is left exactly as authored and can't get
+     visually scrambled by this rule.
+     .font-fa / .font-en above still win for anyone who wants a direction
+     pinned regardless of content — this rule only fills the gap for every
+     other element in the project. */
+  *:not(.font-fa):not(.font-en) {
+    unicode-bidi: plaintext;
+  }
 }
 
 @utility glass-panel {
-  background: linear-gradient(180deg, oklch(0.2 0.035 260 / 0.72), oklch(0.15 0.03 260 / 0.8));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: linear-gradient(180deg, oklch(0.2 0.035 260 / 0.92), oklch(0.15 0.03 260 / 0.96));
   border: 1px solid oklch(0.45 0.08 220 / 0.25);
   box-shadow:
     0 0 0 1px oklch(0.85 0.18 200 / 0.05) inset,
@@ -167,6 +223,13 @@
     0 0 18px -2px oklch(0.68 0.26 25 / 0.5);
 }
 
+@utility neon-border-green {
+  border: 1px solid oklch(0.82 0.22 145 / 0.55);
+  box-shadow:
+    0 0 0 1px oklch(0.82 0.22 145 / 0.15) inset,
+    0 0 18px -2px oklch(0.82 0.22 145 / 0.5);
+}
+
 @utility text-glow-cyan {
   text-shadow: 0 0 12px oklch(0.85 0.18 200 / 0.7);
 }
@@ -186,16 +249,42 @@
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }
 @utility pulse-dot {
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
+@keyframes alarm-blink {
+  0%,
+  100% {
+    background-color: oklch(0.6 0.24 25 / 0.18);
+    box-shadow: 0 0 0 0 oklch(0.6 0.24 25 / 0.55);
+  }
+  50% {
+    background-color: oklch(0.6 0.24 25 / 0.45);
+    box-shadow: 0 0 14px 2px oklch(0.6 0.24 25 / 0.55);
+  }
+}
+@utility alarm-blink {
+  animation: alarm-blink 1s ease-in-out infinite;
+}
+
 @keyframes sweep {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 @utility sweep {
   animation: sweep 2.4s linear infinite;
@@ -213,16 +302,30 @@
 }
 
 @keyframes active-wan-ring {
-  0%, 100% { box-shadow: 0 0 0 1px var(--neon-green) inset, 0 0 10px 0 var(--neon-green); }
-  50% { box-shadow: 0 0 0 1.5px var(--neon-green) inset, 0 0 20px 3px var(--neon-green); }
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--neon-green) inset,
+      0 0 10px 0 var(--neon-green);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1.5px var(--neon-green) inset,
+      0 0 20px 3px var(--neon-green);
+  }
 }
 @utility active-wan-ring {
   animation: active-wan-ring 1.6s ease-in-out infinite;
 }
 
 @keyframes float-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
 }
 @utility float-slow {
   animation: float-slow 6s ease-in-out infinite;
@@ -245,9 +348,7 @@
   --neon-magenta: oklch(0.8 0.2 320);
 }
 [data-theme="glass-aurora"] .glass-panel {
-  background: linear-gradient(180deg, oklch(0.3 0.08 260 / 0.35), oklch(0.2 0.06 260 / 0.4));
-  backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  background: linear-gradient(180deg, oklch(0.3 0.08 260 / 0.88), oklch(0.2 0.06 260 / 0.92));
   border: 1px solid oklch(0.85 0.14 220 / 0.35);
   box-shadow:
     0 0 0 1px oklch(1 0 0 / 0.06) inset,
@@ -402,10 +503,7 @@
   }
 }
 [data-layout="honeycomb"] [data-card="client"] {
-  clip-path: polygon(
-    12% 0, 88% 0, 100% 15%, 100% 85%,
-    88% 100%, 12% 100%, 0 85%, 0 15%
-  );
+  clip-path: polygon(12% 0, 88% 0, 100% 15%, 100% 85%, 88% 100%, 12% 100%, 0 85%, 0 15%);
   border-radius: 0 !important;
   padding-left: 14px !important;
   padding-right: 14px !important;
@@ -413,7 +511,8 @@
 }
 [data-layout="honeycomb"] [data-card="client"]::after {
   content: "";
-  position: absolute; inset: 0;
+  position: absolute;
+  inset: 0;
   pointer-events: none;
   background:
     linear-gradient(135deg, var(--neon-cyan) 0%, transparent 40%) padding-box,
@@ -424,11 +523,18 @@
 
 /* ── Orbit Cells ── circular-ish cards with a rotating neon ring */
 @keyframes orbit-ring {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes orbit-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
 }
 [data-layout="orbit"] [data-clients-grid] {
   gap: 26px !important;
@@ -439,12 +545,8 @@
   aspect-ratio: 1 / 1.15;
   overflow: hidden;
   position: relative;
-  animation: orbit-float 6s ease-in-out infinite;
   isolation: isolate;
 }
-[data-layout="orbit"] [data-clients-grid] > *:nth-child(3n)   [data-card="client"] { animation-delay: -1s; }
-[data-layout="orbit"] [data-clients-grid] > *:nth-child(3n+1) [data-card="client"] { animation-delay: -3s; }
-[data-layout="orbit"] [data-clients-grid] > *:nth-child(3n+2) [data-card="client"] { animation-delay: -5s; }
 [data-layout="orbit"] [data-card="client"]::before {
   content: "";
   position: absolute;
@@ -459,9 +561,8 @@
     var(--neon-magenta) 300deg,
     transparent 360deg
   );
-  animation: orbit-ring 8s linear infinite;
-  opacity: 0.55;
-  filter: blur(4px);
+  opacity: 0.4;
+  filter: blur(6px);
 }
 [data-layout="orbit"] [data-card="client"]::after {
   content: "";
@@ -469,9 +570,11 @@
   inset: 3px;
   z-index: -1;
   border-radius: inherit;
-  background: linear-gradient(180deg,
+  background: linear-gradient(
+    180deg,
     oklch(from var(--background) l c h / 0.92),
-    oklch(from var(--background) calc(l + 0.02) c h / 0.96));
+    oklch(from var(--background) calc(l + 0.02) c h / 0.96)
+  );
 }
 
 /* ── Command Strip ── dense single-column horizontal bars */
@@ -572,4 +675,3 @@
   background: var(--scrollbar-thumb);
   box-shadow: var(--scrollbar-shadow-hover);
 }
-

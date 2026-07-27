@@ -13,7 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyTheme, loadTheme, applyLayout, loadLayout } from "../lib/theme";
 import { applyScrollbarSettings, loadScrollbarSettings } from "../lib/scrollbar-settings";
-import { applyUiScale, loadUiScale } from "../lib/ui-scale";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -81,10 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Exir Gamenet Monitoring" },
-      {
-        name: "description",
-        content: "Real-time gaming center monitoring dashboard for 12 client stations and server.",
-      },
+      { name: "description", content: "Real-time gaming center monitoring dashboard for 12 client stations and server." },
       { property: "og:title", content: "Exir Gamenet Monitoring" },
       { property: "og:description", content: "Real-time gaming center monitoring dashboard." },
       { property: "og:type", content: "website" },
@@ -126,23 +123,19 @@ function RootComponent() {
     applyTheme(loadTheme());
     applyLayout(loadLayout());
     applyScrollbarSettings(loadScrollbarSettings());
-    applyUiScale(loadUiScale());
     const h = () => {
       applyTheme(loadTheme());
       applyLayout(loadLayout());
       applyScrollbarSettings(loadScrollbarSettings());
-      applyUiScale(loadUiScale());
     };
     window.addEventListener("exir:theme", h);
     window.addEventListener("exir:layout", h);
     window.addEventListener("exir:scrollbar", h);
-    window.addEventListener("exir:ui-scale", h);
     window.addEventListener("storage", h);
     return () => {
       window.removeEventListener("exir:theme", h);
       window.removeEventListener("exir:layout", h);
       window.removeEventListener("exir:scrollbar", h);
-      window.removeEventListener("exir:ui-scale", h);
       window.removeEventListener("storage", h);
     };
   }, []);
@@ -151,6 +144,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <Toaster richColors />
     </QueryClientProvider>
   );
 }

@@ -30,11 +30,6 @@ let mikrotikOverride = null;
 const sdrCache = new Map();
 const SDR_TTL_MS = 6 * 60 * 60 * 1000; // 6h — Valve's relay list rarely changes
 
-// Camera motion events (see /camera-motion below) — motionKey -> last-seen
-// epoch ms. In-memory only; an agent restart just means "no motion recorded
-// yet", which is fine (not persisted alarm state).
-const cameraMotion = new Map();
-
 function cleanMikrotikConfig(cfg = {}) {
   return {
     host: String(cfg.host || "").trim(),
@@ -230,18 +225,12 @@ function tcpPingOnce(host, port, timeoutMs) {
 const TCP_FALLBACK_PORTS = [443, 80, 27015]; // https, http, classic Source-engine port
 const TCP_FALLBACK_TIMEOUT_MS = 900;
 
-// Tries all fallback ports IN PARALLEL and returns whichever answers first
-// (lowest RTT among successful ones). Trying them sequentially used to take
-// up to ~2.7s worst-case for a single unresponsive host (3 ports × 900ms) —
-// long enough that the browser's own /ping request would time out and
-// silently drop back to the much less accurate fetch-based heuristic for
-// EVERY target in that batch, not just the slow one. Parallel keeps the
-// worst case at ~900ms, comfortably inside the browser's request budget.
 async function tcpPingBest(host) {
-  const attempts = TCP_FALLBACK_PORTS.map((port) => tcpPingOnce(host, port, TCP_FALLBACK_TIMEOUT_MS));
-  const results = await Promise.all(attempts);
-  const successful = results.filter((ms) => ms >= 0);
-  return successful.length ? Math.min(...successful) : -1;
+  for (const port of TCP_FALLBACK_PORTS) {
+    const ms = await tcpPingOnce(host, port, TCP_FALLBACK_TIMEOUT_MS);
+    if (ms >= 0) return ms;
+  }
+  return -1;
 }
 
 function pingOne(host) {
@@ -316,18 +305,12 @@ const server = createServer((req, res) => {
     let body = "";
     req.on("data", (c) => {
       body += c;
-      if (body.length > 40_000) req.destroy(); // guard
+      if (body.length > 10_000) req.destroy(); // guard
     });
     req.on("end", async () => {
       try {
         const { hosts } = JSON.parse(body || "{}");
-        // Was capped at 24 — silently dropped everything past that index
-        // instead of erroring. Once CS2's live SDR relay list (fetched from
-        // Steam) grew past ~24 entries on its own, every host queued after
-        // it (all of Dota2, then Discord) got no result at all, even with
-        // perfectly good, verified IPs — while CS2 kept pinging fine. Raised
-        // well above any realistic combined total.
-        const list = Array.isArray(hosts) ? hosts.slice(0, 200) : [];
+        const list = Array.isArray(hosts) ? hosts.slice(0, 24) : [];
         const results = await Promise.all(
           list.map((h) =>
             pingOne(
@@ -345,57 +328,6 @@ const server = createServer((req, res) => {
       }
     });
     return;
-  }
-
-  // ── Camera motion webhook (CCTV panel) ───────────────────────────────
-  // Point your NVR's motion-trigger action (Blue Iris "Web request", Shinobi
-  // webhook, ZoneMinder zmeventnotification, iSpy/Agent DVR "Actions") at:
-  //   POST or GET  http://<this-pc-ip>:8765/camera-motion?camera=<motionKey>
-  // (POST body {"camera":"<motionKey>"} also works — whichever your NVR
-  // supports). <motionKey> is whatever you set for that camera in the
-  // dashboard's CCTV settings. The dashboard polls GET /camera-motion every
-  // few seconds and lights up that camera's tile + fires an alert.
-  if (req.url?.startsWith("/camera-motion")) {
-    const hasQuery = req.url.includes("?");
-    if (req.method === "GET" && !hasQuery) {
-      // Plain GET /camera-motion with no query → poll request from the dashboard.
-      const out = {};
-      for (const [k, t] of cameraMotion) out[k] = t;
-      res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ motion: out }));
-    }
-    // Otherwise: a trigger from the NVR (GET with ?camera=... or POST with body).
-    const recordAndRespond = (camera) => {
-      const key = String(camera || "").trim();
-      if (key) cameraMotion.set(key, Date.now());
-      res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: !!key }));
-    };
-    if (req.method === "GET") {
-      const u = new URL(req.url, `http://127.0.0.1:${PORT}`);
-      return recordAndRespond(u.searchParams.get("camera"));
-    }
-    if (req.method === "POST") {
-      let body = "";
-      req.on("data", (c) => {
-        body += c;
-        if (body.length > 4_000) req.destroy();
-      });
-      req.on("end", () => {
-        let camera = "";
-        try {
-          camera = JSON.parse(body || "{}").camera || "";
-        } catch {
-          /* also accept ?camera= on a POST URL */
-        }
-        if (!camera) {
-          const u = new URL(req.url, `http://127.0.0.1:${PORT}`);
-          camera = u.searchParams.get("camera") || "";
-        }
-        recordAndRespond(camera);
-      });
-      return;
-    }
   }
 
   // ── Steam status proxy ──────────────────────────────────────────────

@@ -13,6 +13,7 @@ import { ProcessHistoryPanel } from "./ProcessHistoryPanel";
 interface Props {
   client: ClientStatus;
   onClick: () => void;
+  reserved?: boolean;
 }
 
 function gpuBrand(name: string): "nvidia" | "amd" | "intel" | "other" {
@@ -221,7 +222,7 @@ function PunishButton({ machine }: { machine: string }) {
   );
 }
 
-export function ClientCard({ client, onClick }: Props) {
+export function ClientCard({ client, onClick, reserved }: Props) {
   const online = client.online !== false;
   const overheat = client.gpuTemp >= 80 || client.cpuTemp >= 78;
   const brand = gpuBrand(client.gpuName);
@@ -317,24 +318,39 @@ export function ClientCard({ client, onClick }: Props) {
         }
       }}
       className={`group relative w-full cursor-pointer overflow-hidden rounded-xl p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] glass-panel ${
-        !online ? "opacity-50" : overheat ? "neon-border-red" : "neon-border-cyan"
+        reserved
+          ? "neon-border-green"
+          : !online
+            ? "opacity-50"
+            : overheat
+              ? "neon-border-red"
+              : "neon-border-cyan"
       }`}
     >
       {/* corner accent */}
       <div
         className="pointer-events-none absolute -right-8 -top-8 size-20 rounded-full opacity-30 blur-2xl transition-opacity group-hover:opacity-60"
         style={{
-          background: !online ? "transparent" : overheat ? "var(--neon-red)" : "var(--neon-cyan)",
+          background: reserved
+            ? "var(--neon-green)"
+            : !online
+              ? "transparent"
+              : overheat
+                ? "var(--neon-red)"
+                : "var(--neon-cyan)",
         }}
       />
 
-      {/* sweep line */}
-      {online && (
+      {/* sweep line — reserved seats keep the sweep even while offline, so
+          it stays visible that the seat is booked regardless of connectivity */}
+      {(online || reserved) && (
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px overflow-hidden">
           <div
             className="h-full w-1/3 sweep"
             style={{
-              background: "linear-gradient(90deg, transparent, var(--neon-cyan), transparent)",
+              background: reserved
+                ? "linear-gradient(90deg, transparent, var(--neon-green), transparent)"
+                : "linear-gradient(90deg, transparent, var(--neon-cyan), transparent)",
             }}
           />
         </div>
@@ -394,7 +410,7 @@ export function ClientCard({ client, onClick }: Props) {
               icon={Thermometer}
               value={Math.round((client.gpuTemp + client.cpuTemp) / 2)}
               size={62}
-              bands={settings.gpu}
+              bands={settings.avg}
               shape={settings.clientShape}
               colorMode={settings.colorMode}
               gradient={settings.gradient}

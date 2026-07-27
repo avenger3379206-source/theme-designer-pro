@@ -1,54 +1,27 @@
-import "./lib/error-capture";
+import {
+  createStartHandler,
+  defaultStreamHandler,
+} from "@tanstack/react-start/server";
+import type { Register } from "@tanstack/react-router";
+import type { RequestHandler } from "@tanstack/react-start/server";
 
-import { consumeLastCapturedError } from "./lib/error-capture";
-import { renderErrorPage } from "./lib/error-page";
+// Standard TanStack Start server entry. vite.config.ts points
+// `tanstackStart.server.entry` at this file ("server"), and the dev-server
+// plugin does `(await import("./server.ts")).default.fetch(request)` on
+// every request — so this file must have a default export shaped like
+// `{ fetch(request): Promise<Response> }`, wrapping the router's own
+// request handling (which already goes through the errorMiddleware
+// registered in `src/start.ts`).
+const fetch = createStartHandler(defaultStreamHandler);
 
-type ServerEntry = {
-  fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
-};
+export type ServerEntry = { fetch: RequestHandler<Register> };
 
-let serverEntryPromise: Promise<ServerEntry> | undefined;
-
-async function getServerEntry(): Promise<ServerEntry> {
-  if (!serverEntryPromise) {
-    serverEntryPromise = import("@tanstack/react-start/server-entry").then(
-      (m) => (m.default ?? m) as ServerEntry,
-    );
-  }
-  return serverEntryPromise;
+export function createServerEntry(entry: ServerEntry): ServerEntry {
+  return {
+    async fetch(...args) {
+      return await entry.fetch(...args);
+    },
+  };
 }
 
-// h3 swallows in-handler throws into a normal 500 Response with body
-// {"unhandled":true,"message":"HTTPError"} — try/catch alone never fires for those.
-async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
-  if (response.status < 500) return response;
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) return response;
-
-  const body = await response.clone().text();
-  if (!body.includes('"unhandled":true') || !body.includes('"message":"HTTPError"')) {
-    return response;
-  }
-
-  console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
-  return new Response(renderErrorPage(), {
-    status: 500,
-    headers: { "content-type": "text/html; charset=utf-8" },
-  });
-}
-
-export default {
-  async fetch(request: Request, env: unknown, ctx: unknown) {
-    try {
-      const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
-    } catch (error) {
-      console.error(error);
-      return new Response(renderErrorPage(), {
-        status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
-      });
-    }
-  },
-};
+export default createServerEntry({ fetch });

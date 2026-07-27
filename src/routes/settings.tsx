@@ -31,6 +31,8 @@ import { CircularGauge } from "@/components/monitoring/CircularGauge";
 import { clearLogo, loadLogo, saveLogo, type StoredLogo } from "@/lib/branding";
 import { loadMikrotikConfig, pushMikrotikConfigToAgent, saveMikrotikConfig, type MikrotikConfig } from "@/lib/mikrotik-config";
 import { ThemeEditor } from "@/components/monitoring/ThemeEditor";
+import { AlertSettingsPanel } from "@/components/monitoring/AlertSettingsPanel";
+import { BackupPanel } from "@/components/monitoring/BackupPanel";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings · Exir Gamenet Monitoring" }] }),
@@ -47,7 +49,7 @@ function SettingsPage() {
   const [s, setS] = useState<GaugeSettings>(() => loadSettings());
   const [saved, setSaved] = useState(false);
 
-  function updateBand(metric: "gpu" | "cpu" | "ping", idx: number, patch: Partial<Band>) {
+  function updateBand(metric: "gpu" | "avg" | "cpu" | "ping", idx: number, patch: Partial<Band>) {
     setS((prev) => {
       const bands = prev[metric].map((b, i) => (i === idx ? { ...b, ...patch } : b));
       return { ...prev, [metric]: bands };
@@ -113,6 +115,9 @@ function SettingsPage() {
           strokeWidth={s.strokeWidth}
           customGradients={s.customGradients}
           hiddenGradientIds={s.hiddenGradientIds}
+          gpuBands={s.gpu}
+          avgBands={s.avg}
+          cpuBands={s.cpu}
           onShape={(shape) => { setS((p) => ({ ...p, shape })); setSaved(false); }}
           onClientShape={(clientShape) => { setS((p) => ({ ...p, clientShape })); setSaved(false); }}
           onClientLayout={(clientLayout) => { setS((p) => ({ ...p, clientLayout })); setSaved(false); }}
@@ -121,11 +126,41 @@ function SettingsPage() {
           onStrokeWidth={(strokeWidth) => { setS((p) => ({ ...p, strokeWidth })); setSaved(false); }}
           onCustomGradients={(customGradients) => { setS((p) => ({ ...p, customGradients })); setSaved(false); }}
           onHiddenGradientIds={(hiddenGradientIds) => { setS((p) => ({ ...p, hiddenGradientIds })); setSaved(false); }}
+          onGpuBandChange={(i, patch) => updateBand("gpu", i, patch)}
+          onAvgBandChange={(i, patch) => updateBand("avg", i, patch)}
+          onCpuBandChange={(i, patch) => updateBand("cpu", i, patch)}
         />
+
+        <div className="mt-8 rounded-xl p-5 glass-panel">
+          <div className="mb-4 font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            live preview
+          </div>
+          <div className="flex items-center justify-around">
+            {[30, 55, 70, 82, 95].map((v) => (
+              <div key={v} className="flex flex-col items-center gap-2">
+                <CircularGauge
+                  label={`${v}°`}
+                  value={v}
+                  size={70}
+                  bands={s.gpu}
+                  shape={s.shape}
+                  colorMode={s.colorMode}
+                  gradient={s.gradient}
+                  strokeWidth={s.strokeWidth}
+                />
+                <span className="font-mono text-[10px] uppercase text-muted-foreground">GPU @ {v}°</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <ThemeEditor />
 
         <LogoEditor />
+
+        <AlertSettingsPanel />
+
+        <BackupPanel />
 
         <div className="grid gap-6 md:grid-cols-2">
           <MetricEditor
@@ -155,29 +190,6 @@ function SettingsPage() {
           />
         </div>
 
-        <div className="mt-8 rounded-xl p-5 glass-panel">
-          <div className="mb-4 font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            live preview
-          </div>
-          <div className="flex items-center justify-around">
-            {[30, 55, 70, 82, 95].map((v) => (
-              <div key={v} className="flex flex-col items-center gap-2">
-                <CircularGauge
-                  label={`${v}°`}
-                  value={v}
-                  size={70}
-                  bands={s.gpu}
-                  shape={s.shape}
-                  colorMode={s.colorMode}
-                  gradient={s.gradient}
-                  strokeWidth={s.strokeWidth}
-                />
-                <span className="font-mono text-[10px] uppercase text-muted-foreground">GPU @ {v}°</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         <PowerCredsEditor />
         <MikrotikEditor />
         <CacheSshEditor />
@@ -196,6 +208,9 @@ function ShapeGradientEditor({
   strokeWidth,
   customGradients,
   hiddenGradientIds,
+  gpuBands,
+  avgBands,
+  cpuBands,
   onShape,
   onClientShape,
   onClientLayout,
@@ -204,6 +219,9 @@ function ShapeGradientEditor({
   onStrokeWidth,
   onCustomGradients,
   onHiddenGradientIds,
+  onGpuBandChange,
+  onAvgBandChange,
+  onCpuBandChange,
 }: {
   shape: GaugeShape;
   clientShape: GaugeShape;
@@ -213,6 +231,9 @@ function ShapeGradientEditor({
   strokeWidth: number;
   customGradients: GradientPreset[];
   hiddenGradientIds: string[];
+  gpuBands: Band[];
+  avgBands: Band[];
+  cpuBands: Band[];
   onShape: (s: GaugeShape) => void;
   onClientShape: (s: GaugeShape) => void;
   onClientLayout: (l: ClientLayout) => void;
@@ -221,6 +242,9 @@ function ShapeGradientEditor({
   onStrokeWidth: (w: number) => void;
   onCustomGradients: (g: GradientPreset[]) => void;
   onHiddenGradientIds: (ids: string[]) => void;
+  onGpuBandChange: (idx: number, patch: Partial<Band>) => void;
+  onAvgBandChange: (idx: number, patch: Partial<Band>) => void;
+  onCpuBandChange: (idx: number, patch: Partial<Band>) => void;
 }) {
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -428,6 +452,22 @@ function ShapeGradientEditor({
         </div>
       </div>
 
+      {/* Client gauge colors — quick per-band color set for the GPU / AVG / CPU gauges shown on each client card */}
+      <div className="mb-5">
+        <label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          Client gauge colors (GPU / AVG / CPU) · رنگ گیج‌های کلاینت
+        </label>
+        <p className="mt-1 font-mono text-[10px] leading-relaxed text-muted-foreground/70">
+          تنظیم رنگ و آستانه هرکدوم از سه گیج نمایش داده شده روی کارت هر کلاینت، جدا از هم.
+          {colorMode !== "bands" && " (این رنگ‌ها وقتی Color mode روی Bands باشه روی گیج‌ها اعمال می‌شن.)"}
+        </p>
+        <div className="mt-2 grid gap-3 md:grid-cols-3">
+          <ClientBandColorEditor label="GPU" bands={gpuBands} onChange={onGpuBandChange} />
+          <ClientBandColorEditor label="AVG" bands={avgBands} onChange={onAvgBandChange} />
+          <ClientBandColorEditor label="CPU" bands={cpuBands} onChange={onCpuBandChange} />
+        </div>
+      </div>
+
       {/* Gradient presets — show for both gradient and gradientFill modes */}
       {(colorMode === "gradient" || colorMode === "gradientFill") && (
         <div>
@@ -575,6 +615,56 @@ function ShapeGradientEditor({
           separate bands for GPU, CPU, and ping.
         </p>
       )}
+    </div>
+  );
+}
+
+/** Compact per-band color + threshold editor for one of the client-card gauges (GPU / AVG / CPU).
+ * Lets the user pick a full color set (per temperature band) and hit Save to apply it. */
+function ClientBandColorEditor({
+  label,
+  bands,
+  onChange,
+}: {
+  label: string;
+  bands: Band[];
+  onChange: (idx: number, patch: Partial<Band>) => void;
+}) {
+  const bandLabels = ["Cool", "Warm", "Critical"];
+  return (
+    <div className="rounded-lg border border-border/60 bg-surface/40 p-3">
+      <div className="mb-2 font-mono text-[11px] font-bold uppercase tracking-widest text-cyan-300">
+        {label}
+      </div>
+      <div className="space-y-2">
+        {bands.map((b, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="color"
+              value={b.color}
+              onChange={(e) => onChange(i, { color: e.target.value })}
+              className="h-8 w-9 shrink-0 cursor-pointer rounded border border-border bg-transparent"
+              title={`${bandLabels[i] ?? `Band ${i + 1}`} color`}
+            />
+            <input
+              type="text"
+              value={b.color}
+              onChange={(e) => onChange(i, { color: e.target.value })}
+              className="w-20 rounded border border-border bg-background/60 px-1.5 py-1 font-mono text-[10px] outline-none focus:border-cyan-500"
+            />
+            <input
+              type="number"
+              min={0}
+              max={120}
+              value={b.max}
+              onChange={(e) => onChange(i, { max: Number(e.target.value) })}
+              className="w-14 rounded border border-border bg-background/60 px-1.5 py-1 font-mono text-[10px] outline-none focus:border-cyan-500"
+              title="max °C for this band"
+            />
+            <span className="shrink-0 font-mono text-[9px] text-muted-foreground">°C</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

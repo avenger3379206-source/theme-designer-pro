@@ -106,26 +106,23 @@ export const LATENCY_TARGETS: Record<string, { region: string; hosts: string[] }
     { region: "India Chennai",        hosts: ["ec2.ap-south-1.amazonaws.com"] },    // AWS Mumbai (closest to Chennai)
   ],
   // Dota2's matchmaking regions are still served from Valve's classic
-  // dedicated datacenter / routing-cluster IPs. Each of these was manually
-  // verified with check-host.net from 8 nodes across Iran before being put
-  // here — every one below answered 8/8 (or effectively so) with realistic
-  // RTTs, unlike the previous list which showed 100% loss for every region.
-  // Source table cross-checked against:
-  //   https://steamcommunity.com/sharedfiles/filedetails/?id=949158717
-  //   https://github.com/SteamDatabase/SteamTracking (NetworkDatagramConfig)
+  // dedicated datacenter IPs (not exclusively behind SDR the way CS2's
+  // relays are), and these ARE directly ICMP-pingable — unlike some SDR
+  // relay nodes, which rate-limit/ignore generic ICMP and were showing "—"
+  // (100% loss) for every single Dota2 row. List cross-checked against:
+  //   https://github.com/MrSunshyne/Dota2-server-ping
+  //   https://github.com/denniskupec/valve-matchmaking-ip-ranges
   Dota2: [
-    { region: "US West (Los Angeles)",  hosts: ["162.254.195.70"] }, // verified: 215–260ms from Iran
-    { region: "US East (Washington)",   hosts: ["208.78.164.1"] },   // verified: 217–290ms from Iran
-    { region: "EU West (Frankfurt)",    hosts: ["162.254.197.162"] },// verified: 72–96ms from Iran
-    { region: "EU East (Vienna)",       hosts: ["146.66.155.34"] }, // verified: 72–102ms from Iran
-    { region: "Russia (Stockholm)",     hosts: ["155.133.252.34"] },// verified: 62–90ms from Iran
-    // Added from documented Valve datacenter ranges (steamcommunity.com/sharedfiles/filedetails/?id=949158717,
-    // github.com/denniskupec/valve-matchmaking-ip-ranges) — NOT personally
-    // check-host.net-verified yet like the five above. Worth double-checking
-    // the same way before fully trusting these three.
-    { region: "SE Asia (Singapore)",    hosts: ["103.10.124.1"] },
-    { region: "South America (Brazil)", hosts: ["209.197.29.1"] },
-    { region: "South Africa (Cape Town)", hosts: ["152.111.192.1"] },
+    { region: "US West (California)",       hosts: ["192.69.96.1"] },
+    { region: "US East (Virginia)",         hosts: ["208.78.164.1"] },
+    { region: "EU West (Luxembourg)",       hosts: ["146.66.152.1"] },
+    { region: "EU East (Vienna)",           hosts: ["146.66.155.1"] },
+    { region: "Russia (Stockholm)",         hosts: ["146.66.156.2"] },
+    { region: "SE Asia (Singapore, new)",   hosts: ["103.10.124.1"] },
+    { region: "SE Asia (Singapore, old)",   hosts: ["103.28.54.1"] },
+    { region: "South America (Brazil)",     hosts: ["209.197.29.2"] },
+    { region: "South Africa (Cape Town)",   hosts: ["152.111.192.2"] },
+    { region: "South Korea (Seoul)",        hosts: ["58.125.52.1"] },
   ],
   Discord: [
     { region: "Frankfurt", hosts: ["discord.com"] },

@@ -546,7 +546,7 @@ function CartBar({
   onClear: () => void;
 }) {
   return (
-    <footer className="flex shrink-0 items-center gap-4 border-t border-border/60 bg-surface/70 px-4 py-3 backdrop-blur-sm">
+    <footer className="flex shrink-0 items-center gap-4 border-t border-border/60 bg-surface/95 px-4 py-3">
       <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-x-auto">
         {lines.length === 0 ? (
           <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { PingTarget } from "@/lib/monitoring-types";
 import { colorFor, gradientColorAt, loadSettings, type GaugeSettings } from "@/lib/gauge-settings";
+import { isPingAgentActive } from "@/lib/ping";
 
 const AVG_WINDOW_MS = 30_000;
 
@@ -28,6 +29,12 @@ export function PingPanel({ targets, onEdit }: Props) {
   const [editing, setEditing] = useState<number | null>(null);
   const [draftLabel, setDraftLabel] = useState("");
   const [draftHost, setDraftHost] = useState("");
+  const [agentActive, setAgentActive] = useState<boolean | null>(() => isPingAgentActive());
+
+  useEffect(() => {
+    const id = setInterval(() => setAgentActive(isPingAgentActive()), 2000);
+    return () => clearInterval(id);
+  }, []);
 
   function startEdit(i: number, t: PingTarget) {
     setEditing(i);
@@ -48,7 +55,17 @@ export function PingPanel({ targets, onEdit }: Props) {
     <div className="rounded-xl p-4 glass-panel">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-mono text-xs uppercase tracking-[0.3em] text-muted-foreground">network · ping</h3>
-        <span className="font-mono text-[10px] text-muted-foreground">avg window: 30s · click to edit</span>
+        <div className="flex items-center gap-2">
+          {agentActive === false && (
+            <span
+              title="ping-agent.mjs در دسترس نیست — اعداد از طریق تخمین مرورگر محاسبه می‌شن و دقیق نیستن. مطمئن شو با npm run dev اجرا شده و همین سیستمی هستی که روش اجرا شده."
+              className="rounded-full border border-amber-400/60 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] text-amber-300"
+            >
+              ⚠ حالت تخمینی (agent در دسترس نیست)
+            </span>
+          )}
+          <span className="font-mono text-[10px] text-muted-foreground">avg window: 30s · click to edit</span>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
         {targets.map((t, i) => {

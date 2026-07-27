@@ -34,6 +34,7 @@ export interface GradientPreset {
 
 export interface GaugeSettings {
   gpu: Band[];
+  avg: Band[]; // colors for the "AVG" gauge on client cards (average of gpu+cpu temp)
   cpu: Band[];
   ping: Band[];
   shape: GaugeShape;
@@ -148,6 +149,11 @@ export const DEFAULT_SETTINGS: GaugeSettings = {
     { max: 75, color: "#facc15" },
     { max: 100, color: "#ef4444" },
   ],
+  avg: [
+    { max: 60, color: "#22d3ee" },
+    { max: 75, color: "#facc15" },
+    { max: 100, color: "#ef4444" },
+  ],
   cpu: [
     { max: 60, color: "#22d3ee" },
     { max: 75, color: "#facc15" },
@@ -175,6 +181,7 @@ export function loadSettings(): GaugeSettings {
       const p = JSON.parse(raw) as Partial<GaugeSettings>;
       return {
         gpu: Array.isArray(p.gpu) && p.gpu.length === 3 ? p.gpu : DEFAULT_SETTINGS.gpu,
+        avg: Array.isArray(p.avg) && p.avg.length === 3 ? p.avg : DEFAULT_SETTINGS.avg,
         cpu: Array.isArray(p.cpu) && p.cpu.length === 3 ? p.cpu : DEFAULT_SETTINGS.cpu,
         ping: Array.isArray(p.ping) && p.ping.length === 3 ? p.ping : DEFAULT_SETTINGS.ping,
         shape: p.shape ?? DEFAULT_SETTINGS.shape,
@@ -193,6 +200,7 @@ export function loadSettings(): GaugeSettings {
       const p = JSON.parse(v2Raw) as Partial<GaugeSettings>;
       return {
         gpu: Array.isArray(p.gpu) && p.gpu.length === 3 ? p.gpu : DEFAULT_SETTINGS.gpu,
+        avg: DEFAULT_SETTINGS.avg,
         cpu: Array.isArray(p.cpu) && p.cpu.length === 3 ? p.cpu : DEFAULT_SETTINGS.cpu,
         ping: Array.isArray(p.ping) && p.ping.length === 3 ? p.ping : DEFAULT_SETTINGS.ping,
         shape: DEFAULT_SETTINGS.shape,

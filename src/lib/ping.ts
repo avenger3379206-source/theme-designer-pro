@@ -7,14 +7,30 @@ const TIMEOUT_MS = 1500;
 // Local ping agent (ping-agent.mjs) that does REAL ICMP pings. It starts
 // automatically with the project. When reachable, we use it for accurate LAN
 // latency; otherwise we fall back to the browser fetch heuristic below.
+//
+// Timeout budget: the agent pings every requested host in parallel, but a
+// SINGLE host that doesn't answer ICMP (a router blocking ping, a resolver
+// with a slow reply, etc.) still has to run through the OS ping timeout
+// (~TIMEOUT_MS) plus its TCP-handshake fallback (~900ms, itself parallel
+// across a few ports) before that host resolves to -1. Since the whole
+// batch is one HTTP request, our abort timer has to comfortably outlast
+// that worst case — 4200ms gives real headroom. Setting this too tight (it
+// used to be TIMEOUT_MS + 800 = 2300ms) meant one slow/unresponsive target
+// silently aborted the ENTIRE batch and dropped ALL hosts back to the much
+// less accurate browser-fetch heuristic for that tick — which is why some
+// targets (plain IPs with no web server, e.g. a gateway or DNS resolver)
+// showed nothing at all, while others (real HTTPS servers) showed inflated
+// numbers from a full TLS round-trip instead of a raw ICMP RTT.
+const AGENT_REQUEST_TIMEOUT_MS = 4200;
 const AGENT_URL = "http://localhost:8765";
 let agentAvailable: boolean | null = null; // null = unknown, re-checked periodically
 let agentCheckedAt = 0;
+const AGENT_RECHECK_MS = 4000; // retry a failed agent fairly quickly, not after 10s of wrong data
 
 async function pingViaAgent(hosts: string[]): Promise<number[] | null> {
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS + 800);
+    const timer = setTimeout(() => ctrl.abort(), AGENT_REQUEST_TIMEOUT_MS);
     const res = await fetch(`${AGENT_URL}/ping`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -37,10 +53,19 @@ async function pingViaAgent(hosts: string[]): Promise<number[] | null> {
  * Ping every host once. Prefers the local ICMP agent (accurate, works for LAN
  * IPs and DNS servers); falls back to the per-host browser fetch heuristic.
  */
+/** Whether the last pingAll() call actually used the real-ICMP agent path
+ * (true/false), or we don't know yet (null, before the first attempt). Lets
+ * the UI warn when it's silently fallen back to the much less accurate
+ * browser-fetch heuristic, instead of showing numbers that look normal but
+ * aren't comparable to real ping. */
+export function isPingAgentActive(): boolean | null {
+  return agentAvailable;
+}
+
 export async function pingAll(hosts: string[]): Promise<number[]> {
   const now = Date.now();
-  // Try the agent if it was available, unknown, or it's been >10s since a recheck.
-  if (agentAvailable !== false || now - agentCheckedAt > 10_000) {
+  // Try the agent if it was available, unknown, or it's been long enough since a recheck.
+  if (agentAvailable !== false || now - agentCheckedAt > AGENT_RECHECK_MS) {
     agentCheckedAt = now;
     const viaAgent = await pingViaAgent(hosts);
     if (viaAgent) return viaAgent;

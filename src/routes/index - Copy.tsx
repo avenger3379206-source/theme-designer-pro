@@ -26,7 +26,7 @@ import { ReservationBoard } from "@/components/monitoring/ReservationBoard";
 import { DailyReport } from "@/components/monitoring/DailyReport";
 import { CacheActivityPanel } from "@/components/monitoring/CacheActivityPanel";
 import { EpicCdnDiscovery } from "@/components/monitoring/EpicCdnDiscovery";
-import { loadReservations, remainingMinutes, defaultSeats } from "@/lib/reservations";
+import { currentReservation, nextReservation, defaultSeats } from "@/lib/reservations";
 import { loadLogo } from "@/lib/branding";
 
 export const Route = createFileRoute("/index - Copy")({
@@ -180,14 +180,15 @@ function Dashboard() {
 
   const onlineCount = useMemo(() => clients.filter((c) => c.online !== false).length, [clients]);
 
-  // Live reservation counter for the header pill.
+  // Live reservation counter for the header pill. Counts any seat that has
+  // either an in-progress reservation *or* one queued for later.
   const [reservedCount, setReservedCount] = useState(0);
   const totalSeats = useMemo(() => defaultSeats().length, []);
+  const seatIds = useMemo(() => defaultSeats().map((s) => s.id), []);
   useEffect(() => {
     const recount = () => {
-      const map = loadReservations();
       let n = 0;
-      for (const r of Object.values(map)) if (remainingMinutes(r) > 0) n++;
+      for (const seatId of seatIds) if (currentReservation(seatId) || nextReservation(seatId)) n++;
       setReservedCount(n);
     };
     recount();

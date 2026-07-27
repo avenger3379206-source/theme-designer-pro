@@ -5,29 +5,56 @@ interface Props {
   clients: ClientStatus[];
   onSelect: (c: ClientStatus) => void;
   layout: "grid" | "hex" | "list";
+  reservedSeats?: Set<string>;
 }
 
-export function ClientLayoutView({ clients, onSelect, layout }: Props) {
-  if (layout === "hex") return <HexLayout clients={clients} onSelect={onSelect} />;
-  if (layout === "list") return <ListLayout clients={clients} onSelect={onSelect} />;
-  return <GridLayout clients={clients} onSelect={onSelect} />;
+export function ClientLayoutView({ clients, onSelect, layout, reservedSeats }: Props) {
+  if (layout === "hex") return <HexLayout clients={clients} onSelect={onSelect} reservedSeats={reservedSeats} />;
+  if (layout === "list") return <ListLayout clients={clients} onSelect={onSelect} reservedSeats={reservedSeats} />;
+  return <GridLayout clients={clients} onSelect={onSelect} reservedSeats={reservedSeats} />;
 }
 
-function GridLayout({ clients, onSelect }: { clients: ClientStatus[]; onSelect: (c: ClientStatus) => void }) {
+function GridLayout({
+  clients,
+  onSelect,
+  reservedSeats,
+}: {
+  clients: ClientStatus[];
+  onSelect: (c: ClientStatus) => void;
+  reservedSeats?: Set<string>;
+}) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
       {clients.map((c) => (
-        <ClientCard key={c.machine} client={c} onClick={() => onSelect(c)} />
+        <ClientCard
+          key={c.machine}
+          client={c}
+          onClick={() => onSelect(c)}
+          reserved={reservedSeats?.has(c.machine)}
+        />
       ))}
     </div>
   );
 }
 
-function ListLayout({ clients, onSelect }: { clients: ClientStatus[]; onSelect: (c: ClientStatus) => void }) {
+function ListLayout({
+  clients,
+  onSelect,
+  reservedSeats,
+}: {
+  clients: ClientStatus[];
+  onSelect: (c: ClientStatus) => void;
+  reservedSeats?: Set<string>;
+}) {
   return (
     <div className="flex flex-col gap-2">
       {clients.map((c) => (
-        <ClientCard key={c.machine} client={c} onClick={() => onSelect(c)} />
+        <ClientCard
+          key={c.machine}
+          client={c}
+          onClick={() => onSelect(c)}
+          reserved={reservedSeats?.has(c.machine)}
+        />
       ))}
     </div>
   );
@@ -37,7 +64,15 @@ function ListLayout({ clients, onSelect }: { clients: ClientStatus[]; onSelect: 
  * Honeycomb hex layout: odd rows are offset by half a hex width.
  * Each cell is a hexagon-shaped clip-path container holding a ClientCard.
  */
-function HexLayout({ clients, onSelect }: { clients: ClientStatus[]; onSelect: (c: ClientStatus) => void }) {
+function HexLayout({
+  clients,
+  onSelect,
+  reservedSeats,
+}: {
+  clients: ClientStatus[];
+  onSelect: (c: ClientStatus) => void;
+  reservedSeats?: Set<string>;
+}) {
   // Group into rows of 4 for a balanced honeycomb
   const ROW_SIZE = 4;
   const rows: ClientStatus[][] = [];
@@ -54,7 +89,7 @@ function HexLayout({ clients, onSelect }: { clients: ClientStatus[]; onSelect: (
           style={{ marginLeft: ri % 2 === 1 ? "calc(var(--hex-w) / 2)" : 0 }}
         >
           {row.map((c) => (
-            <HexCell key={c.machine} client={c} onSelect={onSelect} />
+            <HexCell key={c.machine} client={c} onSelect={onSelect} reserved={reservedSeats?.has(c.machine)} />
           ))}
         </div>
       ))}
@@ -62,7 +97,15 @@ function HexLayout({ clients, onSelect }: { clients: ClientStatus[]; onSelect: (
   );
 }
 
-function HexCell({ client, onSelect }: { client: ClientStatus; onSelect: (c: ClientStatus) => void }) {
+function HexCell({
+  client,
+  onSelect,
+  reserved,
+}: {
+  client: ClientStatus;
+  onSelect: (c: ClientStatus) => void;
+  reserved?: boolean;
+}) {
   return (
     <div
       className="hex-clip relative cursor-pointer transition-transform duration-300 hover:-translate-y-1 hover:scale-105"
@@ -78,7 +121,7 @@ function HexCell({ client, onSelect }: { client: ClientStatus; onSelect: (c: Cli
     >
       <div className="hex-clip absolute inset-0 glass-panel" />
       <div className="hex-clip relative h-full overflow-hidden p-3">
-        <ClientCard client={client} onClick={() => onSelect(client)} />
+        <ClientCard client={client} onClick={() => onSelect(client)} reserved={reserved} />
       </div>
     </div>
   );
